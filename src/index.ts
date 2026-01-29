@@ -1,6 +1,16 @@
-import type { Plugin } from "@opencode-ai/plugin"
+import type { Plugin, PluginInput } from "@opencode-ai/plugin"
 import type { Part, UserMessage } from "@opencode-ai/sdk"
 import sharp from "sharp"
+
+/**
+ * Compression result with metadata
+ */
+type CompressionResult = {
+  part: Part
+  originalSize: number
+  compressedSize: number
+  wasCompressed: boolean
+}
 
 /**
  * Provider-specific image size limits (in bytes)
@@ -208,38 +218,54 @@ function isImageFilePart(part: Part): part is Part & { type: "file"; mime: strin
 }
 
 /**
- * Process an image part and return compressed version if needed
+ * Format bytes to human-readable string
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+/**
+ * Process an image part and return compression result
  */
 async function processImagePart(
   part: Part,
   providerID: string,
-): Promise<Part> {
+): Promise<CompressionResult> {
   // Check if this is an image file part with data URI
   if (!isImageFilePart(part)) {
-    return part
+    return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
   }
 
   // Get provider-specific limit
   const maxSize = getProviderLimit(providerID)
   const targetSize = maxSize * TARGET_MULTIPLIER
 
+  // Parse the data URI to get original size
+  const parsed = parseDataUri(part.url)
+  if (!parsed) {
+    return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
+  }
+
+  const originalSize = parsed.data.length
+
   // Check cache first (include provider in cache key since limits vary)
   const cacheKey = `${providerID}:${hashBase64(part.url)}`
   const cached = imageCache.get(cacheKey)
   if (cached) {
+    const cachedSize = Math.ceil(cached.length * 0.75) // Approximate base64 decoded size
     return {
-      ...part,
-      url: cached,
+      part: { ...part, url: cached },
+      originalSize,
+      compressedSize: cachedSize,
+      wasCompressed: true,
     }
   }
 
-  // Parse the data URI
-  const parsed = parseDataUri(part.url)
-  if (!parsed) return part
-
   // Check if compression is needed
-  if (parsed.data.length <= targetSize) {
-    return part
+  if (originalSize <= targetSize) {
+    return { part, originalSize, compressedSize: originalSize, wasCompressed: false }
   }
 
   try {
@@ -261,14 +287,19 @@ async function processImagePart(
     }
 
     return {
-      ...part,
-      url: newDataUri,
-      mime: compressed.mime,
+      part: {
+        ...part,
+        url: newDataUri,
+        mime: compressed.mime,
+      },
+      originalSize,
+      compressedSize: compressed.data.length,
+      wasCompressed: true,
     }
   } catch (error) {
     // If compression fails, return original
     console.error(`[opencode-image-compress] Failed to compress image for ${providerID}:`, error)
-    return part
+    return { part, originalSize, compressedSize: originalSize, wasCompressed: false }
   }
 }
 
@@ -294,9 +325,15 @@ function isUserMessage(info: { role: string }): info is UserMessage {
  * 1. Install the plugin: npm install opencode-image-compress
  * 2. Add to your opencode.json: "plugin": ["opencode-image-compress"]
  */
-const ImageCompressPlugin: Plugin = async (_ctx) => {
+const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
   return {
     "experimental.chat.messages.transform": async (_input, output) => {
+      // Track compression statistics per message
+      const compressionStats: Array<{
+        originalSize: number
+        compressedSize: number
+      }> = []
+
       // Process all messages and their parts
       for (const message of output.messages) {
         if (!message.parts) continue
@@ -312,9 +349,40 @@ const ImageCompressPlugin: Plugin = async (_ctx) => {
           const part = message.parts[i]
 
           if (isImageFilePart(part)) {
-            const processedPart = await processImagePart(part, providerID)
-            message.parts[i] = processedPart
+            const result = await processImagePart(part, providerID)
+            message.parts[i] = result.part
+
+            if (result.wasCompressed) {
+              compressionStats.push({
+                originalSize: result.originalSize,
+                compressedSize: result.compressedSize,
+              })
+            }
           }
+        }
+      }
+
+      // Show toast notification if any images were compressed
+      if (compressionStats.length > 0) {
+        const totalOriginal = compressionStats.reduce((sum, s) => sum + s.originalSize, 0)
+        const totalCompressed = compressionStats.reduce((sum, s) => sum + s.compressedSize, 0)
+        const savings = ((1 - totalCompressed / totalOriginal) * 100).toFixed(0)
+
+        const message =
+          compressionStats.length === 1
+            ? `Compressed image: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
+            : `Compressed ${compressionStats.length} images: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
+
+        try {
+          await ctx.client.tui.showToast({
+            title: "Image Compress",
+            message,
+            variant: "info",
+            duration: 5000,
+          } as any)
+        } catch (error) {
+          // Toast is optional - log error but don't fail
+          console.error("[opencode-image-compress] Failed to show toast:", error)
         }
       }
     },
