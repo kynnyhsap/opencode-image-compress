@@ -1,4 +1,4 @@
-import type { Part, UserMessage } from "@opencode-ai/sdk"
+import type { Part } from "@opencode-ai/sdk"
 import type { CompressionResult, ImageFilePart } from "./types.js"
 import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from "./types.js"
 import {
@@ -21,7 +21,7 @@ export function getProviderLimit(providerID: string): number {
 /**
  * Type guard to check if message info is a UserMessage
  */
-export function isUserMessage(info: { role: string }): info is UserMessage {
+export function isUserMessage(info: { role: string }): boolean {
   return info.role === "user"
 }
 
@@ -30,7 +30,7 @@ export function isUserMessage(info: { role: string }): info is UserMessage {
  */
 export async function processImagePart(
   part: Part,
-  providerID: string
+  providerID: string,
 ): Promise<CompressionResult> {
   // Skip non-image parts
   if (!isImageFilePart(part)) {
@@ -63,7 +63,12 @@ export async function processImagePart(
 
   // Skip if already under target
   if (originalSize <= targetSize) {
-    return { part: imagePart, originalSize, compressedSize: originalSize, wasCompressed: false }
+    return {
+      part: imagePart,
+      originalSize,
+      compressedSize: originalSize,
+      wasCompressed: false,
+    }
   }
 
   // Compress the image
@@ -82,6 +87,11 @@ export async function processImagePart(
     }
   } catch (error) {
     console.error(`[opencode-image-compress] Failed to compress:`, error)
-    return { part: imagePart, originalSize, compressedSize: originalSize, wasCompressed: false }
+    return {
+      part: imagePart,
+      originalSize,
+      compressedSize: originalSize,
+      wasCompressed: false,
+    }
   }
 }

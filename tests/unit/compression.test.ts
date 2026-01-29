@@ -1,7 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import sharp from "sharp"
 import { compressImage } from "../../src/compression.ts"
-import { MAX_DIMENSION } from "../../src/types.ts"
 
 describe("compression", () => {
   /**
@@ -11,13 +10,13 @@ describe("compression", () => {
     width: number,
     height: number,
     format: "jpeg" | "png",
-    quality: number
+    quality: number,
   ): Promise<Buffer> {
     const data = Buffer.alloc(width * height * 3)
     for (let i = 0; i < data.length; i += 3) {
       const x = (i / 3) % width
-      const y = Math.floor((i / 3) / width)
-      const pattern = ((x * 2 + y * 3) % 256)
+      const y = Math.floor(i / 3 / width)
+      const pattern = (x * 2 + y * 3) % 256
       const noise = Math.random() * 50
       data[i] = Math.min(255, pattern + noise)
       data[i + 1] = Math.min(255, ((pattern + 100) % 256) + noise)

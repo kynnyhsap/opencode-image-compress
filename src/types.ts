@@ -6,7 +6,7 @@ import type { Part } from "@opencode-ai/sdk"
 
 /**
  * Provider-specific image size limits (in bytes)
- * 
+ *
  * Different providers have different limits even for the same models.
  * For example, claude-opus-4-5 has different limits:
  *   - anthropic: 5MB (direct API)

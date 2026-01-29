@@ -1,4 +1,3 @@
-import type { ImageFilePart, CompressionResult } from "./types.js"
 import type { Part } from "@opencode-ai/sdk"
 
 /**
@@ -36,7 +35,9 @@ export function formatBytes(bytes: number): string {
 /**
  * Parse data URI to extract mime type and base64 data
  */
-export function parseDataUri(dataUri: string): { mime: string; data: Buffer } | null {
+export function parseDataUri(
+  dataUri: string,
+): { mime: string data: Buffer } | null {
   const match = dataUri.match(/^data:([^;]+);base64,(.+)$/)
   if (!match) return null
 
@@ -49,7 +50,7 @@ export function parseDataUri(dataUri: string): { mime: string; data: Buffer } | 
 /**
  * Check if a part is an image file part
  */
-export function isImageFilePart(part: Part): part is ImageFilePart {
+export function isImageFilePart(part: Part): boolean {
   return (
     part.type === "file" &&
     "mime" in part &&

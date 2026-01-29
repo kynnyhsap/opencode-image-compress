@@ -2,23 +2,13 @@ import sharp from "sharp"
 import { MAX_DIMENSION } from "./types.js"
 
 /**
- * Compression options
- */
-type CompressionOptions = {
-  /** Maximum target size in bytes */
-  maxSize: number
-  /** Quality multiplier (0-1) */
-  targetMultiplier?: number
-}
-
-/**
  * Compress an image to meet size requirements
  */
 export async function compressImage(
   imageData: Buffer,
   mime: string,
-  maxSize: number
-): Promise<{ data: Buffer; mime: string }> {
+  maxSize: number,
+): Promise<{ data: Buffer mime: string }> {
   const targetSize = maxSize * 0.7
 
   // Skip if already under target
@@ -73,7 +63,7 @@ async function resizeImage(
   imageData: Buffer,
   width: number,
   height: number,
-  scale: number
+  scale: number,
 ): Promise<sharp.Sharp> {
   if (scale >= 1) {
     return sharp(imageData)
@@ -82,7 +72,7 @@ async function resizeImage(
   return sharp(imageData).resize(
     Math.round(width * scale),
     Math.round(height * scale),
-    { fit: "inside", withoutEnlargement: true }
+    { fit: "inside", withoutEnlargement: true },
   )
 }
 
@@ -92,7 +82,7 @@ async function resizeImage(
 async function compressWithQuality(
   sharpInstance: sharp.Sharp,
   mime: string,
-  quality: number
+  quality: number,
 ): Promise<Buffer> {
   switch (mime) {
     case "image/jpeg":
@@ -126,8 +116,8 @@ async function compressWithQuality(
 function calculateAdjustment(
   mime: string,
   currentQuality: number,
-  attempt: number
-): { quality: number; scale: number } {
+  _attempt: number,
+): { quality: number scale: number } {
   if (mime === "image/png") {
     // PNG: increase compression level, then reduce dimensions
     if (currentQuality < 9) {
@@ -150,12 +140,12 @@ function calculateAdjustment(
  */
 async function aggressiveCompression(
   imageData: Buffer,
-  mime: string
-): Promise<{ data: Buffer; mime: string }> {
+  mime: string,
+): Promise<{ data: Buffer mime: string }> {
   const sharpInstance = sharp(imageData).resize(
     Math.round(1024),
     Math.round(1024),
-    { fit: "inside" }
+    { fit: "inside" },
   )
 
   const finalBuffer =

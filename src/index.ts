@@ -1,5 +1,5 @@
 import type { Plugin, PluginInput } from "@opencode-ai/plugin"
-import type { Part, UserMessage } from "@opencode-ai/sdk"
+import type { UserMessage } from "@opencode-ai/sdk"
 import { processImagePart, isUserMessage } from "./image-processor.js"
 import { isImageFilePart, formatBytes } from "./utils.js"
 
@@ -7,7 +7,7 @@ import { isImageFilePart, formatBytes } from "./utils.js"
  * Build toast message from compression stats
  */
 function buildToastMessage(
-  stats: Array<{ originalSize: number; compressedSize: number }>
+  stats: Array<{ originalSize: number compressedSize: number }>,
 ): string {
   const totalOriginal = stats.reduce((sum, s) => sum + s.originalSize, 0)
   const totalCompressed = stats.reduce((sum, s) => sum + s.compressedSize, 0)
@@ -25,7 +25,7 @@ function buildToastMessage(
  */
 async function showCompressionToast(
   ctx: PluginInput,
-  stats: Array<{ originalSize: number; compressedSize: number }>
+  stats: Array<{ originalSize: number compressedSize: number }>,
 ): Promise<void> {
   if (stats.length === 0) return
 
@@ -53,7 +53,10 @@ async function showCompressionToast(
 const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
   return {
     "experimental.chat.messages.transform": async (_input, output) => {
-      const compressionStats: Array<{ originalSize: number; compressedSize: number }> = []
+      const compressionStats: Array<{
+        originalSize: number
+        compressedSize: number
+      }> = []
 
       for (const message of output.messages) {
         if (!message.parts) continue
@@ -61,7 +64,9 @@ const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
         // Get provider from message metadata
         let providerID = "default"
         if (isUserMessage(message.info)) {
-          const userInfo = message.info as UserMessage & { model?: { providerID?: string } }
+          const userInfo = message.info as UserMessage & {
+            model?: { providerID?: string }
+          }
           providerID = userInfo.model?.providerID || "default"
         }
 

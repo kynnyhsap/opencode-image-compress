@@ -36,8 +36,10 @@
   "scripts": {
     "dev": "bun run dev.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
-    "fmt": "oxfmt src/ tests/ dev.ts",
-    "fmt:check": "oxfmt --check src/ tests/ dev.ts",
+    "fmt": "oxfmt . --write",
+    "fmt:check": "oxfmt . --check",
+    "lint": "oxlint src/ tests/ dev.ts",
+    "lint:fix": "oxlint src/ tests/ dev.ts --fix",
     "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit",
     "test:unit": "bun test tests/unit",

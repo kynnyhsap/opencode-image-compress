@@ -1,7 +1,11 @@
 import { describe, test, expect } from "bun:test"
-import { getProviderLimit, isUserMessage, processImagePart } from "../../src/image-processor.ts"
+import {
+  getProviderLimit,
+  isUserMessage,
+  processImagePart,
+} from "../../src/image-processor.ts"
 import { PROVIDER_IMAGE_LIMITS } from "../../src/types.ts"
-import type { Part, UserMessage } from "@opencode-ai/sdk"
+import type { Part } from "@opencode-ai/sdk"
 
 describe("image-processor", () => {
   describe("getProviderLimit", () => {
@@ -12,7 +16,9 @@ describe("image-processor", () => {
     })
 
     test("should return default for unknown providers", () => {
-      expect(getProviderLimit("unknown-provider")).toBe(PROVIDER_IMAGE_LIMITS.default)
+      expect(getProviderLimit("unknown-provider")).toBe(
+        PROVIDER_IMAGE_LIMITS.default,
+      )
     })
   })
 
