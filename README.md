@@ -1,10 +1,15 @@
 # OpenCode Image Compress Plugin
 
-Automatically compresses images before sending them to AI providers, preventing "image exceeds 5MB maximum" errors.
+Automatically compresses images before sending them to AI providers, preventing "image exceeds maximum" errors.
 
 ## Problem
 
-AI providers like Anthropic have a 5MB limit on image uploads. High-resolution screenshots (especially @2x Retina displays) often exceed this limit, causing errors like:
+Different AI providers have different image size limits:
+- **Anthropic**: 5MB per image
+- **OpenAI**: 50MB total request (~20MB per image effectively)
+- **Google**: No explicit limit (we use 10MB as conservative default)
+
+High-resolution screenshots (especially @2x Retina displays) often exceed these limits, causing errors like:
 
 ```
 messages.284.content.1.image.source.base64: image exceeds 5 MB maximum: 7082276 bytes > 5242880 bytes
@@ -12,7 +17,7 @@ messages.284.content.1.image.source.base64: image exceeds 5 MB maximum: 7082276 
 
 ## Solution
 
-This plugin automatically intercepts images before they're sent and compresses them to stay under the 5MB limit while maintaining visual quality.
+This plugin automatically intercepts images before they're sent and compresses them to stay under the provider-specific limits while maintaining visual quality. It detects which provider you're using and applies the appropriate limit.
 
 ## Installation
 
@@ -55,15 +60,28 @@ Then add to your project's `opencode.json`:
 ## How It Works
 
 1. **Intercept**: The plugin uses the `experimental.chat.messages.transform` hook to intercept messages before they're sent
-2. **Detect**: Identifies image parts in the message
-3. **Compress**: Uses `sharp` to resize and compress images that exceed 3.5MB (targeting under 5MB after base64 encoding)
-4. **Cache**: Stores processed images in memory to avoid re-processing the same image
+2. **Detect Provider**: Extracts the provider ID (e.g., "anthropic", "openai") from the message metadata
+3. **Apply Limits**: Uses provider-specific size limits (see table below)
+4. **Compress**: Uses `sharp` to resize and compress images that exceed the target size
+5. **Cache**: Stores processed images in memory to avoid re-processing the same image
+
+### Provider-Specific Limits
+
+| Provider | Image Size Limit | Target Size (70%) |
+|----------|-----------------|-------------------|
+| Anthropic | 5 MB | 3.5 MB |
+| OpenAI | 20 MB | 14 MB |
+| Azure | 20 MB | 14 MB |
+| GitHub Copilot | 20 MB | 14 MB |
+| Google | 10 MB | 7 MB |
+| Google Vertex | 10 MB | 7 MB |
+| Other/Unknown | 5 MB | 3.5 MB |
 
 ### Compression Strategy
 
 The plugin uses a multi-step approach:
 
-1. **Check size**: Skip if already under 3.5MB
+1. **Check size**: Skip if already under the provider's target size
 2. **Resize**: Scale down if dimensions exceed 2048px
 3. **Quality reduction**: Reduce quality progressively (JPEG/WebP/AVIF)
 4. **Format optimization**: Use PNG compression levels for PNGs
