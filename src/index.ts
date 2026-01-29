@@ -1,28 +1,44 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import type { Part } from "@opencode-ai/sdk"
+import type { Part, UserMessage } from "@opencode-ai/sdk"
 import sharp from "sharp"
 
 /**
- * Maximum size for images (5MB in bytes)
- * Anthropic's limit: 5242880 bytes (5 * 1024 * 1024)
+ * Provider-specific image size limits (in bytes)
+ * These are the per-image limits enforced by each provider's API
  */
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const PROVIDER_IMAGE_LIMITS: Record<string, number> = {
+  // Anthropic: 5MB per image (most restrictive)
+  // Error: "image exceeds 5 MB maximum: 7082276 bytes > 5242880 bytes"
+  anthropic: 5 * 1024 * 1024,
+  "anthropic-beta": 5 * 1024 * 1024,
+
+  // OpenAI: 50MB total request, effectively ~20MB per image safe limit
+  openai: 20 * 1024 * 1024,
+  azure: 20 * 1024 * 1024,
+  "github-copilot": 20 * 1024 * 1024,
+
+  // Google: No explicit per-image limit found, using conservative 10MB
+  google: 10 * 1024 * 1024,
+  "google-vertex": 10 * 1024 * 1024,
+
+  // Default for unknown providers (conservative)
+  default: 5 * 1024 * 1024,
+}
 
 /**
- * Target size to aim for (slightly under max to account for base64 overhead)
- * Base64 encoding adds ~33% overhead, so we target ~3.5MB raw data
+ * Target size multiplier - we aim for 70% of the limit to account for base64 overhead
+ * Base64 encoding adds ~33% overhead
  */
-const TARGET_IMAGE_SIZE = 3.5 * 1024 * 1024
+const TARGET_MULTIPLIER = 0.7
 
 /**
- * Maximum dimensions for images
- * Most AI models work well with 2048px on the longest side
+ * Maximum dimensions for images (most models work well with this)
  */
 const MAX_DIMENSION = 2048
 
 /**
  * Cache for processed images to avoid re-processing
- * Key: base64 data hash, Value: processed base64 data
+ * Key: `${providerID}:${base64Hash}`, Value: processed base64 data
  */
 const imageCache = new Map<string, string>()
 
@@ -36,6 +52,13 @@ function hashBase64(data: string): string {
     hash = ((hash << 5) - hash + char) | 0
   }
   return hash.toString(36)
+}
+
+/**
+ * Get image size limit for a provider
+ */
+function getProviderLimit(providerID: string): number {
+  return PROVIDER_IMAGE_LIMITS[providerID] || PROVIDER_IMAGE_LIMITS.default
 }
 
 /**
@@ -57,9 +80,12 @@ function parseDataUri(dataUri: string): { mime: string; data: Buffer } | null {
 async function compressImage(
   imageData: Buffer,
   mime: string,
+  maxSize: number,
 ): Promise<{ data: Buffer; mime: string }> {
+  const targetSize = maxSize * TARGET_MULTIPLIER
+
   // Check if already under target size
-  if (imageData.length <= TARGET_IMAGE_SIZE) {
+  if (imageData.length <= targetSize) {
     return { data: imageData, mime }
   }
 
@@ -119,7 +145,7 @@ async function compressImage(
     }
 
     // Check if we're under the target size
-    if (processed.length <= TARGET_IMAGE_SIZE) {
+    if (processed.length <= targetSize) {
       return {
         data: processed,
         mime: mime === "image/gif" ? "image/png" : mime,
@@ -184,14 +210,21 @@ function isImageFilePart(part: Part): part is Part & { type: "file"; mime: strin
 /**
  * Process an image part and return compressed version if needed
  */
-async function processImagePart(part: Part): Promise<Part> {
+async function processImagePart(
+  part: Part,
+  providerID: string,
+): Promise<Part> {
   // Check if this is an image file part with data URI
   if (!isImageFilePart(part)) {
     return part
   }
 
-  // Check cache first
-  const cacheKey = hashBase64(part.url)
+  // Get provider-specific limit
+  const maxSize = getProviderLimit(providerID)
+  const targetSize = maxSize * TARGET_MULTIPLIER
+
+  // Check cache first (include provider in cache key since limits vary)
+  const cacheKey = `${providerID}:${hashBase64(part.url)}`
   const cached = imageCache.get(cacheKey)
   if (cached) {
     return {
@@ -205,13 +238,13 @@ async function processImagePart(part: Part): Promise<Part> {
   if (!parsed) return part
 
   // Check if compression is needed
-  if (parsed.data.length <= TARGET_IMAGE_SIZE) {
+  if (parsed.data.length <= targetSize) {
     return part
   }
 
   try {
     // Compress the image
-    const compressed = await compressImage(parsed.data, parsed.mime)
+    const compressed = await compressImage(parsed.data, parsed.mime, maxSize)
 
     // Create new data URI
     const newDataUri = `data:${compressed.mime};base64,${compressed.data.toString("base64")}`
@@ -219,8 +252,8 @@ async function processImagePart(part: Part): Promise<Part> {
     // Cache the result
     imageCache.set(cacheKey, newDataUri)
 
-    // Limit cache size (keep last 50 entries)
-    if (imageCache.size > 50) {
+    // Limit cache size (keep last 100 entries)
+    if (imageCache.size > 100) {
       const firstKey = imageCache.keys().next().value
       if (firstKey) {
         imageCache.delete(firstKey)
@@ -234,9 +267,16 @@ async function processImagePart(part: Part): Promise<Part> {
     }
   } catch (error) {
     // If compression fails, return original
-    console.error("[opencode-image-compress] Failed to compress image:", error)
+    console.error(`[opencode-image-compress] Failed to compress image for ${providerID}:`, error)
     return part
   }
+}
+
+/**
+ * Type guard to check if message info is a UserMessage
+ */
+function isUserMessage(info: { role: string }): info is UserMessage {
+  return info.role === "user"
 }
 
 /**
@@ -244,6 +284,11 @@ async function processImagePart(part: Part): Promise<Part> {
  *
  * This plugin intercepts messages before they're sent to the AI provider
  * and compresses any images that exceed the provider's size limits.
+ *
+ * Provider-specific limits:
+ * - Anthropic: 5MB per image
+ * - OpenAI: 20MB per image (effectively, based on 50MB total request)
+ * - Google: 10MB per image (conservative)
  *
  * Usage:
  * 1. Install the plugin: npm install opencode-image-compress
@@ -256,12 +301,18 @@ const ImageCompressPlugin: Plugin = async (_ctx) => {
       for (const message of output.messages) {
         if (!message.parts) continue
 
+        // Get providerID from user messages
+        let providerID = "default"
+        if (isUserMessage(message.info)) {
+          providerID = message.info.model?.providerID || "default"
+        }
+
         // Process each part in the message
         for (let i = 0; i < message.parts.length; i++) {
           const part = message.parts[i]
 
           if (isImageFilePart(part)) {
-            const processedPart = await processImagePart(part)
+            const processedPart = await processImagePart(part, providerID)
             message.parts[i] = processedPart
           }
         }
