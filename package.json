@@ -1,0 +1,27 @@
+{
+  "name": "opencode-image-compress",
+  "version": "1.0.0",
+  "description": "Automatically compresses images before sending to AI providers to avoid size limits",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["opencode", "plugin", "image", "compression", "anthropic"],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0.0",
+    "@opencode-ai/sdk": "^1.0.0"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
