@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
-import { getProviderLimit, isUserMessage, processImagePart } from "../src/image-processor"
-import { PROVIDER_IMAGE_LIMITS } from "../src/types"
+import { getProviderLimit, isUserMessage, processImagePart } from "../../src/image-processor.ts"
+import { PROVIDER_IMAGE_LIMITS } from "../../src/types.ts"
 import type { Part, UserMessage } from "@opencode-ai/sdk"
 
 describe("image-processor", () => {

@@ -8,7 +8,7 @@ import {
   getCachedImage,
   setCachedImage,
   getSizeFromDataUri,
-} from "../src/utils"
+} from "../../src/utils.ts"
 import type { Part } from "@opencode-ai/sdk"
 
 describe("utils", () => {
@@ -94,17 +94,20 @@ describe("utils", () => {
     })
 
     test("should evict old entries when over limit", () => {
-      // Fill cache beyond limit
+      // Fill cache beyond limit (MAX_CACHE_SIZE is 100)
       for (let i = 0; i < 110; i++) {
         setCachedImage(`key-${i}`, `value-${i}`)
       }
 
-      // First entries should be evicted
+      // First 10 entries should be evicted (110 - 100 = 10)
       expect(getCachedImage("key-0")).toBeUndefined()
-      expect(getCachedImage("key-50")).toBeUndefined()
+      expect(getCachedImage("key-9")).toBeUndefined()
+
+      // Entry 10 should still exist (first non-evicted)
+      expect(getCachedImage("key-10")).toBe("value-10")
 
       // Recent entries should exist
-      expect(getCachedImage("key-105")).toBe("value-105")
+      expect(getCachedImage("key-109")).toBe("value-109")
     })
   })
 

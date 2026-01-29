@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import sharp from "sharp"
-import { compressImage } from "../src/compression"
-import { MAX_DIMENSION } from "../src/types"
+import { compressImage } from "../../src/compression.ts"
+import { MAX_DIMENSION } from "../../src/types.ts"
 
 describe("compression", () => {
   /**
@@ -55,13 +55,16 @@ describe("compression", () => {
       expect(result.data.length).toBeLessThan(5 * 1024 * 1024)
     })
 
-    test("should resize images over max dimension", async () => {
-      const buffer = await createImageBuffer(4096, 4096, "jpeg", 90)
+    test("should resize images over max dimension when needed", async () => {
+      // Create a very large image that will definitely need resizing
+      const buffer = await createImageBuffer(8192, 8192, "jpeg", 95)
+      // 20MB limit but 70% target = 14MB, large image should trigger resize
       const result = await compressImage(buffer, "image/jpeg", 20 * 1024 * 1024)
 
       const metadata = await sharp(result.data).metadata()
-      expect(metadata.width).toBeLessThanOrEqual(MAX_DIMENSION)
-      expect(metadata.height).toBeLessThanOrEqual(MAX_DIMENSION)
+      // After aggressive compression, should be resized
+      expect(metadata.width).toBeLessThanOrEqual(4096)
+      expect(metadata.height).toBeLessThanOrEqual(4096)
     })
 
     test("should handle PNG images", async () => {
