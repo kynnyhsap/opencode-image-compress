@@ -17,9 +17,16 @@ const execAsync = promisify(exec)
  * 2. Large images pass with the plugin (automatic compression)
  * 3. Multiple images are handled correctly
  * 4. Different formats are supported
+ * 
+ * NOTE: These tests require the `opencode` binary to be available and
+ * an Anthropic API key to be configured. They may take 30-60 seconds each.
+ * Run with: E2E_TESTS=1 bun test tests/e2e
  */
 
-describe("opencode-image-compress E2E", () => {
+// Skip E2E tests unless explicitly enabled
+const runE2E = process.env.E2E_TESTS === "1" || process.env.CI === "true"
+
+describe.skipIf(!runE2E)("opencode-image-compress E2E", () => {
   const testDir = join(tmpdir(), "opencode-image-compress-e2e-" + Date.now())
   const fixturesDir = join(testDir, "fixtures")
   const pluginDir = "/Users/kynnyhsap/Projects/opencode-image-compress"
@@ -30,8 +37,8 @@ describe("opencode-image-compress E2E", () => {
 
   beforeAll(async () => {
     // Create test directories
-    await mkdir(testDir, { recursive: true })
-    await mkdir(fixturesDir, { recursive: true })
+    await mkdir(testDir, { recursive: true }, 60000)
+    await mkdir(fixturesDir, { recursive: true }, 60000)
 
     // Ensure dist exists
     if (!existsSync(distDir)) {
@@ -44,16 +51,16 @@ describe("opencode-image-compress E2E", () => {
     // Create test configs
     configWithoutPlugin = await createConfig(false)
     configWithPlugin = await createConfig(true)
-  })
+  }, 60000)
 
   afterAll(async () => {
     // Cleanup
     try {
-      await rm(testDir, { recursive: true, force: true })
+      await rm(testDir, { recursive: true, force: true }, 60000)
     } catch (e) {
       // Ignore cleanup errors
     }
-  })
+  }, 60000)
 
   /**
    * Generate test images of various sizes
@@ -101,7 +108,7 @@ describe("opencode-image-compress E2E", () => {
       data[i + 2] = Math.min(255, ((pattern + 200) % 256) + noise)
     }
 
-    const img = sharp(data, { raw: { width, height, channels: 3 } })
+    const img = sharp(data, { raw: { width, height, channels: 3 } }, 60000)
 
     if (format === "jpeg") {
       return img.jpeg({ quality, progressive: true }).toBuffer()
@@ -149,7 +156,7 @@ describe("opencode-image-compress E2E", () => {
     const command = `opencode run "${prompt}" -f ${imagePath} --format json 2>&1`
 
     try {
-      const { stdout, stderr } = await execAsync(command, { env, timeout: 120000 })
+      const { stdout, stderr } = await execAsync(command, { env, timeout: 120000 }, 60000)
       return { exitCode: 0, stdout, stderr }
     } catch (error: any) {
       return {
@@ -178,13 +185,13 @@ describe("opencode-image-compress E2E", () => {
       const result = await runOpencode(configWithoutPlugin, join(fixturesDir, "small.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
-    })
+    }, 60000)
 
     test("medium image should succeed", async () => {
       const result = await runOpencode(configWithoutPlugin, join(fixturesDir, "medium.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
-    })
+    }, 60000)
 
     test("large image should fail with size error", async () => {
       const result = await runOpencode(configWithoutPlugin, join(fixturesDir, "large.jpg"))
@@ -194,7 +201,7 @@ describe("opencode-image-compress E2E", () => {
         hasImageSizeError(result.stdout) ||
         result.exitCode !== 0
       ).toBe(true)
-    })
+    }, 60000)
 
     test("very large image should fail with size error", async () => {
       const result = await runOpencode(configWithoutPlugin, join(fixturesDir, "very-large.jpg"))
@@ -203,57 +210,57 @@ describe("opencode-image-compress E2E", () => {
         hasImageSizeError(result.stdout) ||
         result.exitCode !== 0
       ).toBe(true)
-    })
-  })
+    }, 60000)
+  }, 60000)
 
   describe("with plugin", () => {
     test("small image should succeed", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "small.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
-    })
+    }, 60000)
 
     test("medium image should succeed", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "medium.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
-    })
+    }, 60000)
 
     test("large image should succeed (gets compressed)", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "large.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
       expect(result.exitCode).toBe(0)
-    })
+    }, 60000)
 
     test("very large image should succeed (gets compressed)", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "very-large.jpg"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
       expect(result.exitCode).toBe(0)
-    })
+    }, 60000)
 
     test("large PNG image should succeed (gets compressed)", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "large.png"))
       expect(hasImageSizeError(result.stderr)).toBe(false)
       expect(hasImageSizeError(result.stdout)).toBe(false)
       expect(result.exitCode).toBe(0)
-    })
-  })
+    }, 60000)
+  }, 60000)
 
   describe("edge cases", () => {
     test("should handle non-existent image gracefully", async () => {
       const result = await runOpencode(configWithPlugin, join(fixturesDir, "non-existent.jpg"))
       // Should fail but not due to our plugin
       expect(result.exitCode).not.toBe(0)
-    })
+    }, 60000)
 
     test("should handle text-only prompts without images", async () => {
       const env = { ...process.env, OPENCODE_CONFIG: configWithPlugin }
       const command = `opencode run "Hello world" --format json 2>&1`
 
       try {
-        const { stdout, stderr } = await execAsync(command, { env, timeout: 60000 })
+        const { stdout, stderr } = await execAsync(command, { env, timeout: 60000 }, 60000)
         // Text-only should work fine
         expect(hasImageSizeError(stderr)).toBe(false)
         expect(hasImageSizeError(stdout)).toBe(false)
@@ -262,6 +269,6 @@ describe("opencode-image-compress E2E", () => {
         expect(hasImageSizeError(error.stderr || error.message || "")).toBe(false)
         expect(hasImageSizeError(error.stdout || "")).toBe(false)
       }
-    })
-  })
-})
+    }, 60000)
+  }, 60000)
+}, 60000)

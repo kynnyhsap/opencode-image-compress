@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.8",
+    "oxfmt": "^0.1.0",
     "typescript": "^5.7.2"
   },
   "bugs": {
@@ -35,10 +36,12 @@
   "scripts": {
     "dev": "bun run dev.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
+    "fmt": "oxfmt src/ tests/ dev.ts",
+    "fmt:check": "oxfmt --check src/ tests/ dev.ts",
     "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit",
     "test:unit": "bun test tests/unit",
-    "test:e2e": "bun test tests/e2e",
+    "test:e2e": "E2E_TESTS=1 bun test tests/e2e",
     "test": "bun test"
   },
   "type": "module",
