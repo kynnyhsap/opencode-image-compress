@@ -4,9 +4,16 @@
 
 ## Problem
 
-High-resolution screenshots (especially @2x Retina displays) often exceed provider size limits:
+High-resolution images (especially @2x Retina screenshots) often exceed provider size limits, making it impossible to use them in conversations:
 
-![Screenshot showing "image exceeds 5 MB maximum" error in OpenCode](screenshot.png)
+![Without the plugin: "image exceeds 5 MB maximum" error when attaching a large image](before.png)
+
+## Solution
+
+With the plugin installed, images are automatically compressed before being sent. The same image works seamlessly:
+
+![With the plugin: the same large image is compressed and described by the AI without errors](after.png)
+
 
 ## Installation
 
@@ -69,6 +76,8 @@ The plugin logs compression activity to OpenCode's app log system (`service: "im
 ### Toast Notifications
 
 Set `OPENCODE_IMAGE_COMPRESS_PLUGIN_SHOW_TOAST=1` to show TUI toast notifications when images are compressed or when compression fails.
+
+![Toast notification showing "Compressed 2 images: 47.54 MB → 3.58 MB (92% smaller)"](notification.png)
 
 ## Development
 
