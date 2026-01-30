@@ -16,7 +16,7 @@ describe('image-processor', () => {
 		test('should return correct limits for known providers', () => {
 			expect(getProviderLimit('anthropic')).toBe(5 * MB)
 			expect(getProviderLimit('openai')).toBe(20 * MB)
-			expect(getProviderLimit('google')).toBe(7 * MB)
+			expect(getProviderLimit('google')).toBe(100 * MB)
 			expect(getProviderLimit('groq')).toBe(4 * MB)
 			expect(getProviderLimit('amazon-bedrock')).toBe(3.75 * MB)
 			expect(getProviderLimit('perplexity')).toBe(50 * MB)
@@ -24,6 +24,7 @@ describe('image-processor', () => {
 			expect(getProviderLimit('fireworks-ai')).toBe(10 * MB)
 			expect(getProviderLimit('togetherai')).toBe(20 * MB)
 			expect(getProviderLimit('google-vertex-anthropic')).toBe(5 * MB)
+			expect(getProviderLimit('mistral')).toBe(10 * MB)
 		})
 
 		test('should return default for unknown providers', () => {
@@ -35,8 +36,8 @@ describe('image-processor', () => {
 			expect(getProviderLimit('github-copilot', 'claude-sonnet-4-5')).toBe(5 * MB)
 			// github-copilot with GPT model -> openai limit
 			expect(getProviderLimit('github-copilot', 'gpt-4o')).toBe(20 * MB)
-			// opencode with Gemini model -> google limit
-			expect(getProviderLimit('opencode', 'gemini-2.5-pro')).toBe(7 * MB)
+			// opencode with Gemini model -> google limit (100 MB since Jan 2026)
+			expect(getProviderLimit('opencode', 'gemini-2.5-pro')).toBe(100 * MB)
 			// opencode with Grok model -> xai limit
 			expect(getProviderLimit('opencode', 'grok-4')).toBe(20 * MB)
 			// openrouter with DeepSeek model -> deepseek limit
