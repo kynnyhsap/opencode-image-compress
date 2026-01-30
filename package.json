@@ -1,6 +1,6 @@
 {
 	"name": "opencode-image-compress",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Automatically compresses images before sending to AI providers to avoid size limits",
 	"keywords": [
 		"anthropic",
@@ -27,7 +27,6 @@
 	],
 	"type": "module",
 	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
 	"exports": {
 		".": {
 			"bun": "./src/index.ts",
@@ -36,7 +35,7 @@
 	},
 	"scripts": {
 		"dev": "bun run dev.ts",
-		"build": "bun build src/index.ts --outdir dist --target bun",
+		"build": "rm -rf dist && bun build src/index.ts --outdir dist --target bun --packages external --minify",
 		"fmt": "oxfmt . --write",
 		"fmt:check": "oxfmt . --check",
 		"lint": "oxlint src/ tests/ dev.ts",
