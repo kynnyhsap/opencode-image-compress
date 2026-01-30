@@ -7,51 +7,86 @@ import type { Part } from '@opencode-ai/sdk'
 /**
  * Provider-specific image size limits (in bytes)
  *
- * Different providers have different limits even for the same models.
- * For example, claude-opus-4-5 has different limits:
- *   - anthropic: 5MB (direct API)
- *   - github-copilot: 20MB (through Copilot)
- *   - opencode: 5MB (proxied through opencode)
+ * Limits are for decoded image data (before base64 encoding).
+ * Each entry includes a source URL for verification.
  */
 export const PROVIDER_IMAGE_LIMITS: Record<string, number> = {
-	// Anthropic: 5MB per image (most restrictive)
-	// Error: "image exceeds 5 MB maximum: 7082276 bytes > 5242880 bytes"
+	// Anthropic: 5 MB per image (API). Rejects oversized.
+	// https://platform.claude.com/docs/en/build-with-claude/vision (FAQ)
 	anthropic: 5 * 1024 * 1024,
 	'anthropic-beta': 5 * 1024 * 1024,
 
-	// OpenCode built-in provider (uses same limits as upstream)
-	// When opencode proxies to anthropic models, it's subject to anthropic limits
-	opencode: 5 * 1024 * 1024,
+	// AWS Bedrock: 3.75 MB per image. Rejects oversized.
+	// https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html
+	bedrock: 3.75 * 1024 * 1024,
+	'aws-bedrock': 3.75 * 1024 * 1024,
 
-	// GitHub Copilot: Higher limits (Microsoft infrastructure)
-	// Same models as anthropic but with 20MB limit
-	'github-copilot': 20 * 1024 * 1024,
-	copilot: 20 * 1024 * 1024,
-
-	// OpenAI and Azure: 50MB total request, ~20MB per image
+	// OpenAI: 20 MB per image. Auto-resizes to 2048x2048.
+	// https://learn.microsoft.com/en-us/azure/ai-foundry/openai/quotas-limits
 	openai: 20 * 1024 * 1024,
+
+	// Azure OpenAI: 20 MB per image. Same as OpenAI.
+	// https://learn.microsoft.com/en-us/azure/ai-foundry/openai/quotas-limits
 	azure: 20 * 1024 * 1024,
 	'azure-openai': 20 * 1024 * 1024,
 
-	// Google/Gemini: No explicit per-image limit, conservative 10MB
-	google: 10 * 1024 * 1024,
-	'google-vertex': 10 * 1024 * 1024,
-	vertex: 10 * 1024 * 1024,
+	// Google Gemini: 7 MB inline per image. Auto-resizes to ~3072x3072.
+	// https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-pro
+	google: 7 * 1024 * 1024,
+	'google-vertex': 7 * 1024 * 1024,
+	vertex: 7 * 1024 * 1024,
 
-	// Perplexity: Similar to OpenAI (uses underlying models)
-	perplexity: 20 * 1024 * 1024,
+	// Groq: 4 MB for base64, 20 MB for URL. We send base64.
+	// https://console.groq.com/docs/vision
+	groq: 4 * 1024 * 1024,
 
-	// Other providers with generous limits
-	groq: 20 * 1024 * 1024,
-	fireworks: 20 * 1024 * 1024,
-	together: 20 * 1024 * 1024,
-	'together-ai': 20 * 1024 * 1024,
-	deepseek: 20 * 1024 * 1024,
+	// Fireworks AI: 10 MB total base64, 5 MB per URL.
+	// https://docs.fireworks.ai/guides/querying-vision-language-models
+	fireworks: 10 * 1024 * 1024,
+
+	// Perplexity: 50 MB base64.
+	// https://docs.perplexity.ai/guides/image-attachments
+	perplexity: 50 * 1024 * 1024,
+
+	// xAI (Grok): 20 MB per image.
+	// https://docs.x.ai/docs/models
 	xai: 20 * 1024 * 1024,
 
-	// Default for unknown providers (conservative 5MB)
+	// DeepSeek: ~10 MB (community consensus, not officially documented).
+	deepseek: 10 * 1024 * 1024,
+
+	// Together AI: Not documented. Conservative 20 MB.
+	together: 20 * 1024 * 1024,
+	'together-ai': 20 * 1024 * 1024,
+
+	// Default for unknown providers (conservative 5 MB)
 	default: 5 * 1024 * 1024,
 }
+
+/**
+ * Model ID prefix to upstream provider mapping.
+ * Used to resolve the actual provider for proxy providers
+ * (e.g. github-copilot, opencode) that forward to upstream APIs.
+ */
+export const MODEL_PREFIX_TO_PROVIDER: Record<string, string> = {
+	claude: 'anthropic',
+	gpt: 'openai',
+	o1: 'openai',
+	o3: 'openai',
+	o4: 'openai',
+	gemini: 'google',
+	grok: 'xai',
+	deepseek: 'deepseek',
+	llama: 'groq',
+	mixtral: 'groq',
+	qwen: 'fireworks',
+}
+
+/**
+ * Providers that proxy requests to upstream providers.
+ * For these, we resolve the limit from the model ID instead.
+ */
+export const PROXY_PROVIDERS = new Set(['github-copilot', 'copilot', 'opencode'])
 
 /**
  * Target size multiplier - we aim for 70% of the limit to account for base64 overhead

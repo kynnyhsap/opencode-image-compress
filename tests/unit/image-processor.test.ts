@@ -2,7 +2,12 @@ import type { Part } from '@opencode-ai/sdk'
 import { describe, test, expect } from 'bun:test'
 import sharp from 'sharp'
 
-import { getProviderLimit, isUserMessage, processImagePart } from '../../src/image-processor.ts'
+import {
+	getProviderLimit,
+	isUserMessage,
+	processImagePart,
+	resolveProviderFromModel,
+} from '../../src/image-processor.ts'
 import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from '../../src/types.ts'
 
 describe('image-processor', () => {
@@ -10,11 +15,59 @@ describe('image-processor', () => {
 		test('should return correct limits for known providers', () => {
 			expect(getProviderLimit('anthropic')).toBe(5 * 1024 * 1024)
 			expect(getProviderLimit('openai')).toBe(20 * 1024 * 1024)
-			expect(getProviderLimit('google')).toBe(10 * 1024 * 1024)
+			expect(getProviderLimit('google')).toBe(7 * 1024 * 1024)
+			expect(getProviderLimit('groq')).toBe(4 * 1024 * 1024)
+			expect(getProviderLimit('bedrock')).toBe(3.75 * 1024 * 1024)
+			expect(getProviderLimit('perplexity')).toBe(50 * 1024 * 1024)
+			expect(getProviderLimit('xai')).toBe(20 * 1024 * 1024)
 		})
 
 		test('should return default for unknown providers', () => {
 			expect(getProviderLimit('unknown-provider')).toBe(PROVIDER_IMAGE_LIMITS.default)
+		})
+
+		test('should resolve proxy provider from model ID', () => {
+			// github-copilot with Claude model -> anthropic limit
+			expect(getProviderLimit('github-copilot', 'claude-sonnet-4-5')).toBe(5 * 1024 * 1024)
+			// github-copilot with GPT model -> openai limit
+			expect(getProviderLimit('github-copilot', 'gpt-4o')).toBe(20 * 1024 * 1024)
+			// opencode with Gemini model -> google limit
+			expect(getProviderLimit('opencode', 'gemini-2.5-pro')).toBe(7 * 1024 * 1024)
+			// opencode with Grok model -> xai limit
+			expect(getProviderLimit('opencode', 'grok-4')).toBe(20 * 1024 * 1024)
+		})
+
+		test('should fall back to default for proxy provider with unknown model', () => {
+			expect(getProviderLimit('github-copilot', 'some-unknown-model')).toBe(
+				PROVIDER_IMAGE_LIMITS.default,
+			)
+		})
+
+		test('should ignore modelID for non-proxy providers', () => {
+			// anthropic is not a proxy provider, so modelID is ignored
+			expect(getProviderLimit('anthropic', 'gpt-4o')).toBe(5 * 1024 * 1024)
+		})
+	})
+
+	describe('resolveProviderFromModel', () => {
+		test('should resolve known model prefixes', () => {
+			expect(resolveProviderFromModel('claude-sonnet-4-5')).toBe('anthropic')
+			expect(resolveProviderFromModel('gpt-4o')).toBe('openai')
+			expect(resolveProviderFromModel('o1-preview')).toBe('openai')
+			expect(resolveProviderFromModel('o3-mini')).toBe('openai')
+			expect(resolveProviderFromModel('gemini-2.5-pro')).toBe('google')
+			expect(resolveProviderFromModel('grok-4')).toBe('xai')
+			expect(resolveProviderFromModel('deepseek-r1')).toBe('deepseek')
+			expect(resolveProviderFromModel('llama-4-scout')).toBe('groq')
+		})
+
+		test('should return undefined for unknown model', () => {
+			expect(resolveProviderFromModel('some-unknown-model')).toBeUndefined()
+		})
+
+		test('should be case-insensitive', () => {
+			expect(resolveProviderFromModel('Claude-Sonnet-4-5')).toBe('anthropic')
+			expect(resolveProviderFromModel('GPT-4o')).toBe('openai')
 		})
 	})
 

@@ -27,22 +27,25 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 				message: (typeof output.messages)[number]
 				index: number
 				providerID: string
+				modelID?: string
 			}> = []
 
 			for (const message of output.messages) {
 				if (!message.parts) continue
 
 				let providerID = 'default'
+				let modelID: string | undefined
 				if (isUserMessage(message.info)) {
 					const userInfo = message.info as UserMessage & {
-						model?: { providerID?: string }
+						model?: { providerID?: string; modelID?: string }
 					}
 					providerID = userInfo.model?.providerID || 'default'
+					modelID = userInfo.model?.modelID
 				}
 
 				for (let i = 0; i < message.parts.length; i++) {
 					if (isImageFilePart(message.parts[i])) {
-						tasks.push({ message, index: i, providerID })
+						tasks.push({ message, index: i, providerID, modelID })
 					}
 				}
 			}
@@ -59,7 +62,9 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 
 			// Process all images concurrently
 			const results = await Promise.all(
-				tasks.map((task) => processImagePart(task.message.parts[task.index], task.providerID, log)),
+				tasks.map((task) =>
+					processImagePart(task.message.parts[task.index], task.providerID, task.modelID, log),
+				),
 			)
 
 			// Apply results and collect stats

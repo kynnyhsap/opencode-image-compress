@@ -3,7 +3,12 @@ import type { Part } from '@opencode-ai/sdk'
 import { compressImage } from './compression.js'
 import type { Logger } from './logger.js'
 import type { CompressionResult, ImageFilePart } from './types.js'
-import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from './types.js'
+import {
+	MODEL_PREFIX_TO_PROVIDER,
+	PROVIDER_IMAGE_LIMITS,
+	PROXY_PROVIDERS,
+	TARGET_MULTIPLIER,
+} from './types.js'
 import {
 	isImageFilePart,
 	getCacheKey,
@@ -15,9 +20,29 @@ import {
 } from './utils.js'
 
 /**
- * Get image size limit for a provider
+ * Resolve upstream provider from model ID prefix.
+ * E.g. "claude-sonnet-4-5" -> "anthropic", "gpt-4o" -> "openai"
  */
-export function getProviderLimit(providerID: string): number {
+export function resolveProviderFromModel(modelID: string): string | undefined {
+	const lower = modelID.toLowerCase()
+	for (const [prefix, provider] of Object.entries(MODEL_PREFIX_TO_PROVIDER)) {
+		if (lower.startsWith(prefix)) return provider
+	}
+	return undefined
+}
+
+/**
+ * Get image size limit for a provider.
+ * For proxy providers (github-copilot, opencode), resolves the upstream
+ * provider from the model ID to get the correct limit.
+ */
+export function getProviderLimit(providerID: string, modelID?: string): number {
+	if (PROXY_PROVIDERS.has(providerID) && modelID) {
+		const resolved = resolveProviderFromModel(modelID)
+		if (resolved && PROVIDER_IMAGE_LIMITS[resolved]) {
+			return PROVIDER_IMAGE_LIMITS[resolved]
+		}
+	}
 	return PROVIDER_IMAGE_LIMITS[providerID] || PROVIDER_IMAGE_LIMITS.default
 }
 
@@ -34,6 +59,7 @@ export function isUserMessage(info: { role: string }): boolean {
 export async function processImagePart(
 	part: Part,
 	providerID: string,
+	modelID?: string,
 	log?: Logger,
 ): Promise<CompressionResult> {
 	if (!isImageFilePart(part)) {
@@ -41,7 +67,7 @@ export async function processImagePart(
 	}
 
 	const imagePart = part as ImageFilePart
-	const maxSize = getProviderLimit(providerID)
+	const maxSize = getProviderLimit(providerID, modelID)
 	const targetSize = maxSize * TARGET_MULTIPLIER
 
 	const parsed = parseDataUri(imagePart.url)
