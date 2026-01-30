@@ -6,50 +6,12 @@ import type { CompressionStats } from './types.js'
 import { isImageFilePart, formatBytes } from './utils.js'
 
 /**
- * Build toast message from compression stats
- */
-function buildToastMessage(stats: CompressionStats[]): string {
-	const totalOriginal = stats.reduce((sum, s) => sum + s.originalSize, 0)
-	const totalCompressed = stats.reduce((sum, s) => sum + s.compressedSize, 0)
-	const savings = ((1 - totalCompressed / totalOriginal) * 100).toFixed(0)
-
-	if (stats.length === 1) {
-		return `Compressed image: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
-	}
-
-	return `Compressed ${stats.length} images: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
-}
-
-/**
- * Show toast notification if in TUI mode
- */
-async function showCompressionToast(ctx: PluginInput, stats: CompressionStats[]): Promise<void> {
-	if (stats.length === 0) return
-
-	const message = buildToastMessage(stats)
-
-	try {
-		await ctx.client.tui.showToast({
-			body: {
-				title: 'Image Compress Plugin',
-				message,
-				variant: 'info',
-				duration: 2000,
-			},
-		})
-	} catch (error) {
-		// Toast is optional - don't fail if it doesn't work
-		console.error('[opencode-image-compress] Failed to show toast:', error)
-	}
-}
-
-/**
  * OpenCode plugin for automatic image compression
  *
  * Automatically compresses images before sending to AI providers
  * to stay within provider-specific size limits.
  */
-const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
+export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 	return {
 		'experimental.chat.messages.transform': async (_input, output) => {
 			// Collect all image parts across all messages for concurrent processing
@@ -101,4 +63,41 @@ const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 	}
 }
 
-export default ImageCompressPlugin
+/**
+ * Build toast message from compression stats
+ */
+function buildToastMessage(stats: CompressionStats[]): string {
+	const totalOriginal = stats.reduce((sum, s) => sum + s.originalSize, 0)
+	const totalCompressed = stats.reduce((sum, s) => sum + s.compressedSize, 0)
+	const savings = ((1 - totalCompressed / totalOriginal) * 100).toFixed(0)
+
+	if (stats.length === 1) {
+		return `Compressed image: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
+	}
+
+	return `Compressed ${stats.length} images: ${formatBytes(totalOriginal)} → ${formatBytes(totalCompressed)} (${savings}% smaller)`
+}
+
+/**
+ * Show toast notification if in TUI mode
+ */
+async function showCompressionToast(ctx: PluginInput, stats: CompressionStats[]): Promise<void> {
+	if (!process.env.OPENCODE_IMAGE_COMPRESS_PLUGIN_SHOW_TOAST) return
+	if (stats.length === 0) return
+
+	const message = buildToastMessage(stats)
+
+	try {
+		await ctx.client.tui.showToast({
+			body: {
+				title: 'Image Compress Plugin',
+				message,
+				variant: 'info',
+				duration: 2000,
+			},
+		})
+	} catch (error) {
+		// Toast is optional - don't fail if it doesn't work
+		console.error('[opencode-image-compress] Failed to show toast:', error)
+	}
+}
