@@ -4,12 +4,13 @@
 	"description": "Automatically compresses images before sending to AI providers to avoid size limits",
 	"keywords": [
 		"anthropic",
+		"compress",
 		"compression",
 		"image",
+		"images",
 		"opencode",
 		"opencode-plugin",
-		"plugin",
-		"vision"
+		"plugin"
 	],
 	"homepage": "https://github.com/kynnyhsap/opencode-image-compress",
 	"bugs": {
