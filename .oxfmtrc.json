@@ -29,9 +29,5 @@
 		"newlinesBetween": true
 	},
 
-	"ignorePatterns": [
-		"**/node_modules",
-		"**/dist",
-		"**/bun.lock"
-	]
+	"ignorePatterns": ["**/node_modules", "**/dist", "**/bun.lock"]
 }
