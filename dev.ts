@@ -18,7 +18,7 @@ const config = { plugin: [pluginPath] } satisfies Config
 
 const OPENCODE_CONFIG_CONTENT = JSON.stringify(config)
 
-// console.log(`OPENCODE_CONFIG_CONTENT='${OPENCODE_CONFIG_CONTENT}' opencode`)
+console.log(`OPENCODE_CONFIG_CONTENT='${OPENCODE_CONFIG_CONTENT}' opencode`)
 
 const proc = spawn(['opencode'], {
 	env: {
