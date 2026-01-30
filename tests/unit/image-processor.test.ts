@@ -8,7 +8,8 @@ import {
 	processImagePart,
 	resolveProviderFromModel,
 } from '../../src/image-processor.ts'
-import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from '../../src/types.ts'
+import { PROVIDER_IMAGE_LIMITS } from '../../src/providers.ts'
+import { TARGET_MULTIPLIER } from '../../src/types.ts'
 
 describe('image-processor', () => {
 	describe('getProviderLimit', () => {
@@ -17,9 +18,12 @@ describe('image-processor', () => {
 			expect(getProviderLimit('openai')).toBe(20 * 1024 * 1024)
 			expect(getProviderLimit('google')).toBe(7 * 1024 * 1024)
 			expect(getProviderLimit('groq')).toBe(4 * 1024 * 1024)
-			expect(getProviderLimit('bedrock')).toBe(3.75 * 1024 * 1024)
+			expect(getProviderLimit('amazon-bedrock')).toBe(3.75 * 1024 * 1024)
 			expect(getProviderLimit('perplexity')).toBe(50 * 1024 * 1024)
 			expect(getProviderLimit('xai')).toBe(20 * 1024 * 1024)
+			expect(getProviderLimit('fireworks-ai')).toBe(10 * 1024 * 1024)
+			expect(getProviderLimit('togetherai')).toBe(20 * 1024 * 1024)
+			expect(getProviderLimit('google-vertex-anthropic')).toBe(5 * 1024 * 1024)
 		})
 
 		test('should return default for unknown providers', () => {
@@ -35,6 +39,10 @@ describe('image-processor', () => {
 			expect(getProviderLimit('opencode', 'gemini-2.5-pro')).toBe(7 * 1024 * 1024)
 			// opencode with Grok model -> xai limit
 			expect(getProviderLimit('opencode', 'grok-4')).toBe(20 * 1024 * 1024)
+			// openrouter with DeepSeek model -> deepseek limit
+			expect(getProviderLimit('openrouter', 'deepseek-r1')).toBe(10 * 1024 * 1024)
+			// github-models with Claude model -> anthropic limit
+			expect(getProviderLimit('github-models', 'claude-sonnet-4-5')).toBe(5 * 1024 * 1024)
 		})
 
 		test('should fall back to default for proxy provider with unknown model', () => {

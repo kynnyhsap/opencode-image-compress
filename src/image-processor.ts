@@ -2,13 +2,9 @@ import type { Part } from '@opencode-ai/sdk'
 
 import { compressImage } from './compression.js'
 import type { Logger } from './logger.js'
+import { MODEL_PREFIX_TO_PROVIDER, PROVIDER_IMAGE_LIMITS, PROXY_PROVIDERS } from './providers.js'
 import type { CompressionResult, ImageFilePart } from './types.js'
-import {
-	MODEL_PREFIX_TO_PROVIDER,
-	PROVIDER_IMAGE_LIMITS,
-	PROXY_PROVIDERS,
-	TARGET_MULTIPLIER,
-} from './types.js'
+import { TARGET_MULTIPLIER } from './types.js'
 import {
 	isImageFilePart,
 	getCacheKey,
