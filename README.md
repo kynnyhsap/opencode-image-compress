@@ -5,6 +5,7 @@ Automatically compresses images before sending them to AI providers, preventing 
 ## Problem
 
 Different AI providers have different image size limits:
+
 - **Anthropic**: 5MB per image
 - **OpenAI**: 50MB total request (~20MB per image effectively)
 - **Google**: No explicit limit (we use 10MB as conservative default)
@@ -35,7 +36,7 @@ Then add to your `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["opencode-image-compress"]
+	"plugin": ["opencode-image-compress"]
 }
 ```
 
@@ -53,7 +54,7 @@ Then add to your project's `opencode.json`:
 
 ```json
 {
-  "plugin": ["opencode-image-compress"]
+	"plugin": ["opencode-image-compress"]
 }
 ```
 
@@ -67,15 +68,15 @@ Then add to your project's `opencode.json`:
 
 ### Provider-Specific Limits
 
-| Provider | Image Size Limit | Target Size (70%) |
-|----------|-----------------|-------------------|
-| Anthropic | 5 MB | 3.5 MB |
-| OpenAI | 20 MB | 14 MB |
-| Azure | 20 MB | 14 MB |
-| GitHub Copilot | 20 MB | 14 MB |
-| Google | 10 MB | 7 MB |
-| Google Vertex | 10 MB | 7 MB |
-| Other/Unknown | 5 MB | 3.5 MB |
+| Provider       | Image Size Limit | Target Size (70%) |
+| -------------- | ---------------- | ----------------- |
+| Anthropic      | 5 MB             | 3.5 MB            |
+| OpenAI         | 20 MB            | 14 MB             |
+| Azure          | 20 MB            | 14 MB             |
+| GitHub Copilot | 20 MB            | 14 MB             |
+| Google         | 10 MB            | 7 MB              |
+| Google Vertex  | 10 MB            | 7 MB              |
+| Other/Unknown  | 5 MB             | 3.5 MB            |
 
 ### Compression Strategy
 
