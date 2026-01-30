@@ -4,6 +4,9 @@
 
 import type { Part } from '@opencode-ai/sdk'
 
+export const KB = 1024
+export const MB = 1024 * 1024
+
 /**
  * Target size multiplier - we aim for 70% of the limit to account for base64 overhead
  * Base64 encoding adds ~33% overhead

@@ -1,5 +1,6 @@
 import type { Part } from '@opencode-ai/sdk'
 
+import { KB, MB } from './types.js'
 import type { ParsedDataUri } from './types.js'
 
 /**
@@ -29,9 +30,9 @@ export function hashBase64(data: string): string {
  * Format bytes to human-readable string
  */
 export function formatBytes(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-	return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+	if (bytes < KB) return `${bytes} B`
+	if (bytes < MB) return `${(bytes / KB).toFixed(1)} KB`
+	return `${(bytes / MB).toFixed(2)} MB`
 }
 
 /**

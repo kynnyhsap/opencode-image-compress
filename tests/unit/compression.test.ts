@@ -2,7 +2,7 @@ import { describe, test, expect } from 'bun:test'
 import sharp from 'sharp'
 
 import { compressImage } from '../../src/compression.ts'
-import { TARGET_MULTIPLIER } from '../../src/types.ts'
+import { KB, MB, TARGET_MULTIPLIER } from '../../src/types.ts'
 
 describe('compression', () => {
 	/**
@@ -37,7 +37,7 @@ describe('compression', () => {
 	describe('compressImage', () => {
 		test('should not compress images under target size', async () => {
 			const buffer = await createImageBuffer(100, 100, 'jpeg', 80)
-			const result = await compressImage(buffer, 'image/jpeg', 5 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 5 * MB)
 
 			// Should return original
 			expect(result.data.length).toBe(buffer.length)
@@ -46,21 +46,21 @@ describe('compression', () => {
 
 		test('should compress large JPEG images', async () => {
 			const buffer = await createImageBuffer(4096, 3072, 'jpeg', 95)
-			expect(buffer.length).toBeGreaterThan(5 * 1024 * 1024)
+			expect(buffer.length).toBeGreaterThan(5 * MB)
 
-			const result = await compressImage(buffer, 'image/jpeg', 5 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 5 * MB)
 
 			// Should be smaller
 			expect(result.data.length).toBeLessThan(buffer.length)
 			// Should be under 5MB
-			expect(result.data.length).toBeLessThan(5 * 1024 * 1024)
+			expect(result.data.length).toBeLessThan(5 * MB)
 		})
 
 		test('should resize images over max dimension when needed', async () => {
 			// Create a very large image that will definitely need resizing
 			const buffer = await createImageBuffer(8192, 8192, 'jpeg', 95)
 			// 20MB limit but 70% target = 14MB, large image should trigger resize
-			const result = await compressImage(buffer, 'image/jpeg', 20 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 20 * MB)
 
 			const metadata = await sharp(result.data).metadata()
 			// After aggressive compression, should be resized
@@ -70,14 +70,14 @@ describe('compression', () => {
 
 		test('should handle PNG images', async () => {
 			const buffer = await createImageBuffer(2048, 1536, 'png', 6)
-			const result = await compressImage(buffer, 'image/png', 5 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/png', 5 * MB)
 
 			expect(result.mime).toBe('image/png')
 		})
 
 		test('should preserve aspect ratio', async () => {
 			const buffer = await createImageBuffer(4000, 2000, 'jpeg', 90) // 2:1 ratio
-			const result = await compressImage(buffer, 'image/jpeg', 5 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 5 * MB)
 
 			const metadata = await sharp(result.data).metadata()
 			// Aspect ratio should be preserved (within rounding)
@@ -90,7 +90,7 @@ describe('compression', () => {
 		// This test verifies the constant is respected: images just under the target
 		// (maxSize * TARGET_MULTIPLIER) should not be compressed.
 		test('should use TARGET_MULTIPLIER constant for target size threshold', async () => {
-			const maxSize = 5 * 1024 * 1024
+			const maxSize = 5 * MB
 			const targetSize = maxSize * TARGET_MULTIPLIER
 
 			// Create a small image that's definitely under the target
@@ -109,7 +109,7 @@ describe('compression', () => {
 		test('should fall back to aggressive compression for extremely tight limits', async () => {
 			const buffer = await createImageBuffer(4096, 3072, 'jpeg', 95)
 			// Use an absurdly small limit so progressive compression can never satisfy it
-			const result = await compressImage(buffer, 'image/jpeg', 50 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 50 * KB)
 
 			// Should still produce a valid JPEG
 			expect(result.mime).toBe('image/jpeg')
@@ -129,7 +129,7 @@ describe('compression', () => {
 		test('should progressively shrink dimensions when quality reduction alone is insufficient', async () => {
 			// Large image with a tight limit that requires both quality and dimension reduction
 			const buffer = await createImageBuffer(4096, 3072, 'jpeg', 95)
-			const tightLimit = 500 * 1024 // 500KB — requires aggressive shrinking
+			const tightLimit = 500 * KB // 500KB — requires aggressive shrinking
 
 			const result = await compressImage(buffer, 'image/jpeg', tightLimit)
 
@@ -145,9 +145,9 @@ describe('compression', () => {
 		test('should handle quality bottoming out for non-PNG formats', async () => {
 			const buffer = await createImageBuffer(3000, 2000, 'jpeg', 95)
 			// Tight enough to require multiple quality reductions
-			const result = await compressImage(buffer, 'image/jpeg', 1 * 1024 * 1024)
+			const result = await compressImage(buffer, 'image/jpeg', 1 * MB)
 
-			expect(result.data.length).toBeLessThan(1 * 1024 * 1024)
+			expect(result.data.length).toBeLessThan(1 * MB)
 			expect(result.mime).toBe('image/jpeg')
 
 			// Should be substantially smaller than original
@@ -158,11 +158,11 @@ describe('compression', () => {
 		test('should convert GIF to PNG during compression', async () => {
 			// Create a buffer as JPEG but tell compressImage it's a GIF
 			const buffer = await createImageBuffer(2048, 1536, 'jpeg', 95)
-			const _smallResult = await compressImage(buffer, 'image/gif', 50 * 1024 * 1024)
+			const _smallResult = await compressImage(buffer, 'image/gif', 50 * MB)
 
 			// If it was under target, it returns original mime. Create one that needs compression.
 			const largeBuffer = await createImageBuffer(4096, 3072, 'jpeg', 95)
-			const result2 = await compressImage(largeBuffer, 'image/gif', 5 * 1024 * 1024)
+			const result2 = await compressImage(largeBuffer, 'image/gif', 5 * MB)
 
 			expect(result2.mime).toBe('image/png')
 		})

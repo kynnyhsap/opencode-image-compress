@@ -1,6 +1,7 @@
 import type { Part } from '@opencode-ai/sdk'
 import { describe, test, expect } from 'bun:test'
 
+import { MB } from '../../src/types.ts'
 import type { ImageFilePart } from '../../src/types.ts'
 import {
 	hashBase64,
@@ -39,7 +40,7 @@ describe('utils', () => {
 		})
 
 		test('should format megabytes', () => {
-			expect(formatBytes(5 * 1024 * 1024)).toBe('5.00 MB')
+			expect(formatBytes(5 * MB)).toBe('5.00 MB')
 		})
 	})
 
