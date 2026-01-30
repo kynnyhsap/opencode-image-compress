@@ -1,6 +1,7 @@
 import type { Part } from '@opencode-ai/sdk'
 
 import { compressImage } from './compression.js'
+import type { Logger } from './logger.js'
 import type { CompressionResult, ImageFilePart } from './types.js'
 import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from './types.js'
 import {
@@ -10,6 +11,7 @@ import {
 	setCachedImage,
 	parseDataUri,
 	getSizeFromDataUri,
+	formatBytes,
 } from './utils.js'
 
 /**
@@ -29,7 +31,11 @@ export function isUserMessage(info: { role: string }): boolean {
 /**
  * Process an image part and return compression result
  */
-export async function processImagePart(part: Part, providerID: string): Promise<CompressionResult> {
+export async function processImagePart(
+	part: Part,
+	providerID: string,
+	log?: Logger,
+): Promise<CompressionResult> {
 	if (!isImageFilePart(part)) {
 		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
 	}
@@ -40,6 +46,7 @@ export async function processImagePart(part: Part, providerID: string): Promise<
 
 	const parsed = parseDataUri(imagePart.url)
 	if (!parsed) {
+		log?.warn('failed to parse data URI', { mime: imagePart.mime })
 		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
 	}
 
@@ -49,16 +56,28 @@ export async function processImagePart(part: Part, providerID: string): Promise<
 	const cacheKey = getCacheKey(providerID, imagePart.url)
 	const cached = getCachedImage(cacheKey)
 	if (cached) {
+		const compressedSize = getSizeFromDataUri(cached)
+		log?.debug('cache hit', {
+			provider: providerID,
+			originalSize: formatBytes(originalSize),
+			compressedSize: formatBytes(compressedSize),
+		})
 		return {
 			part: { ...imagePart, url: cached },
 			originalSize,
-			compressedSize: getSizeFromDataUri(cached),
+			compressedSize,
 			wasCompressed: true,
 		}
 	}
 
 	// Skip if already under target
 	if (originalSize <= targetSize) {
+		log?.debug('image under target, skipping', {
+			provider: providerID,
+			size: formatBytes(originalSize),
+			target: formatBytes(targetSize),
+			mime: parsed.mime,
+		})
 		return {
 			part: imagePart,
 			originalSize,
@@ -67,12 +86,27 @@ export async function processImagePart(part: Part, providerID: string): Promise<
 		}
 	}
 
+	log?.info('compressing image', {
+		provider: providerID,
+		originalSize: formatBytes(originalSize),
+		target: formatBytes(targetSize),
+		mime: parsed.mime,
+	})
+
 	// Compress the image
 	try {
-		const compressed = await compressImage(parsed.data, parsed.mime, maxSize)
+		const compressed = await compressImage(parsed.data, parsed.mime, maxSize, log)
 		const newDataUri = `data:${compressed.mime};base64,${compressed.data.toString('base64')}`
 
 		setCachedImage(cacheKey, newDataUri)
+
+		log?.info('image compressed', {
+			provider: providerID,
+			originalSize: formatBytes(originalSize),
+			compressedSize: formatBytes(compressed.data.length),
+			savings: `${((1 - compressed.data.length / originalSize) * 100).toFixed(0)}%`,
+			outputMime: compressed.mime,
+		})
 
 		return {
 			part: { ...imagePart, url: newDataUri, mime: compressed.mime },
@@ -81,7 +115,12 @@ export async function processImagePart(part: Part, providerID: string): Promise<
 			wasCompressed: true,
 		}
 	} catch (error) {
-		console.error(`[opencode-image-compress] Failed to compress:`, error)
+		log?.error('compression failed', {
+			provider: providerID,
+			mime: parsed.mime,
+			originalSize: formatBytes(originalSize),
+			error: String(error),
+		})
 		return {
 			part: imagePart,
 			originalSize,

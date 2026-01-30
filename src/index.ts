@@ -2,6 +2,7 @@ import type { Plugin, PluginInput } from '@opencode-ai/plugin'
 import type { UserMessage } from '@opencode-ai/sdk'
 
 import { processImagePart, isUserMessage } from './image-processor.js'
+import { createLogger } from './logger.js'
 import type { CompressionStats } from './types.js'
 import { isImageFilePart, formatBytes } from './utils.js'
 
@@ -12,8 +13,15 @@ import { isImageFilePart, formatBytes } from './utils.js'
  * to stay within provider-specific size limits.
  */
 export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
+	const log = createLogger(ctx)
+
+	log.info('plugin initialized')
+
 	return {
 		'experimental.chat.messages.transform': async (_input, output) => {
+			const totalMessages = output.messages.length
+			log.debug('transform hook called', { totalMessages })
+
 			// Collect all image parts across all messages for concurrent processing
 			const tasks: Array<{
 				message: (typeof output.messages)[number]
@@ -39,9 +47,19 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 				}
 			}
 
+			if (tasks.length === 0) {
+				log.debug('no image parts found, skipping')
+				return
+			}
+
+			log.info('processing images', {
+				count: tasks.length,
+				providers: [...new Set(tasks.map((t) => t.providerID))],
+			})
+
 			// Process all images concurrently
 			const results = await Promise.all(
-				tasks.map((task) => processImagePart(task.message.parts[task.index], task.providerID)),
+				tasks.map((task) => processImagePart(task.message.parts[task.index], task.providerID, log)),
 			)
 
 			// Apply results and collect stats
@@ -56,6 +74,16 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 						compressedSize: result.compressedSize,
 					})
 				}
+			}
+
+			if (compressionStats.length > 0) {
+				log.info('compression complete', {
+					compressed: compressionStats.length,
+					skipped: tasks.length - compressionStats.length,
+					stats: compressionStats,
+				})
+			} else {
+				log.debug('no images needed compression')
 			}
 
 			await showCompressionToast(ctx, compressionStats)
@@ -97,7 +125,6 @@ async function showCompressionToast(ctx: PluginInput, stats: CompressionStats[])
 			},
 		})
 	} catch (error) {
-		// Toast is optional - don't fail if it doesn't work
 		console.error('[opencode-image-compress] Failed to show toast:', error)
 	}
 }

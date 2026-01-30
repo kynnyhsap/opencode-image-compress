@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 
+import type { Logger } from './logger.js'
 import type { CompressedImage, CompressionAdjustment } from './types.js'
 import { MAX_DIMENSION, TARGET_MULTIPLIER } from './types.js'
 
@@ -10,6 +11,7 @@ export async function compressImage(
 	imageData: Buffer,
 	mime: string,
 	maxSize: number,
+	log?: Logger,
 ): Promise<CompressedImage> {
 	const targetSize = maxSize * TARGET_MULTIPLIER
 
@@ -26,17 +28,39 @@ export async function compressImage(
 	let scale = maxDim > MAX_DIMENSION ? MAX_DIMENSION / maxDim : 1
 	let quality = getInitialQuality(mime)
 
+	log?.debug('starting progressive compression', {
+		width,
+		height,
+		initialScale: scale.toFixed(2),
+		initialQuality: quality,
+		mime,
+	})
+
 	// Progressive compression attempts
 	for (let attempt = 0; attempt < 10; attempt++) {
 		const resized = await resizeImage(imageData, width, height, scale)
 		const processed = await compressWithQuality(resized, mime, quality)
 
 		if (processed.length <= targetSize) {
+			log?.debug('compression succeeded', {
+				attempt: attempt + 1,
+				quality,
+				scale: scale.toFixed(2),
+				resultSize: processed.length,
+			})
 			return {
 				data: processed,
 				mime: mime === 'image/gif' ? 'image/png' : mime,
 			}
 		}
+
+		log?.debug('attempt did not meet target, adjusting', {
+			attempt: attempt + 1,
+			quality,
+			scale: scale.toFixed(2),
+			resultSize: processed.length,
+			targetSize,
+		})
 
 		// Adjust quality/scale for next attempt
 		const adjustment = calculateAdjustment(mime, quality, scale)
@@ -45,6 +69,11 @@ export async function compressImage(
 	}
 
 	// Fallback: aggressive resize
+	log?.warn('progressive compression exhausted, using aggressive fallback', {
+		width,
+		height,
+		mime,
+	})
 	return aggressiveCompression(imageData, mime)
 }
 
