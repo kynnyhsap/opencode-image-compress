@@ -6,9 +6,7 @@
 
 High-resolution screenshots (especially @2x Retina displays) often exceed provider size limits:
 
-```
-image exceeds 5 MB maximum: 7082276 bytes > 5242880 bytes
-```
+![Screenshot showing "image exceeds 5 MB maximum" error in OpenCode](screenshot.png)
 
 ## Installation
 
