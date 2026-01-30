@@ -36,6 +36,7 @@
 	"scripts": {
 		"dev": "bun run dev.ts",
 		"build": "rm -rf dist && bun build src/index.ts --outdir dist --target bun --packages external --minify",
+		"build:meta": "bun run build --metafile-md=dist/meta.md",
 		"fmt": "oxfmt . --write",
 		"fmt:check": "oxfmt . --check",
 		"lint": "oxlint src/ tests/ dev.ts",
