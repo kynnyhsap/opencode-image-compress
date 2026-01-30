@@ -14,7 +14,7 @@ Add to your `opencode.json` (global or per-project):
 
 ```json
 {
-	"plugin": ["opencode-image-compress"]
+	"plugin": ["opencode-image-compress@latest"]
 }
 ```
 
