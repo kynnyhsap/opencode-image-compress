@@ -82,3 +82,35 @@ export type ImageFilePart = Part & {
   mime: string
   url: string
 }
+
+/**
+ * Result from image compression containing the buffer and output mime type
+ */
+export type CompressedImage = {
+  data: Buffer
+  mime: string
+}
+
+/**
+ * Quality and scale parameters for compression adjustment
+ */
+export type CompressionAdjustment = {
+  quality: number
+  scale: number
+}
+
+/**
+ * Compression stats for toast notifications
+ */
+export type CompressionStats = {
+  originalSize: number
+  compressedSize: number
+}
+
+/**
+ * Parsed data URI components
+ */
+export type ParsedDataUri = {
+  mime: string
+  data: Buffer
+}

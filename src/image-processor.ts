@@ -1,4 +1,5 @@
 import type { Part } from "@opencode-ai/sdk"
+
 import type { CompressionResult, ImageFilePart } from "./types.js"
 import { PROVIDER_IMAGE_LIMITS, TARGET_MULTIPLIER } from "./types.js"
 import {
@@ -32,16 +33,14 @@ export async function processImagePart(
   part: Part,
   providerID: string,
 ): Promise<CompressionResult> {
-  // Skip non-image parts
   if (!isImageFilePart(part)) {
     return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
   }
 
+  const imagePart = part as ImageFilePart
   const maxSize = getProviderLimit(providerID)
   const targetSize = maxSize * TARGET_MULTIPLIER
 
-  // Parse data URI - part is now narrowed to ImageFilePart
-  const imagePart = part as ImageFilePart
   const parsed = parseDataUri(imagePart.url)
   if (!parsed) {
     return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
@@ -76,7 +75,6 @@ export async function processImagePart(
     const compressed = await compressImage(parsed.data, parsed.mime, maxSize)
     const newDataUri = `data:${compressed.mime};base64,${compressed.data.toString("base64")}`
 
-    // Cache result
     setCachedImage(cacheKey, newDataUri)
 
     return {

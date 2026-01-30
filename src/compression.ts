@@ -1,5 +1,7 @@
 import sharp from "sharp"
-import { MAX_DIMENSION } from "./types.js"
+
+import type { CompressedImage, CompressionAdjustment } from "./types.js"
+import { MAX_DIMENSION, TARGET_MULTIPLIER } from "./types.js"
 
 /**
  * Compress an image to meet size requirements
@@ -8,8 +10,8 @@ export async function compressImage(
   imageData: Buffer,
   mime: string,
   maxSize: number,
-): Promise<{ data: Buffer mime: string }> {
-  const targetSize = maxSize * 0.7
+): Promise<CompressedImage> {
+  const targetSize = maxSize * TARGET_MULTIPLIER
 
   // Skip if already under target
   if (imageData.length <= targetSize) {
@@ -22,8 +24,6 @@ export async function compressImage(
   // Calculate initial scale based on max dimension
   const maxDim = Math.max(width, height)
   let scale = maxDim > MAX_DIMENSION ? MAX_DIMENSION / maxDim : 1
-
-  // Start with format-appropriate quality
   let quality = getInitialQuality(mime)
 
   // Progressive compression attempts
@@ -39,7 +39,7 @@ export async function compressImage(
     }
 
     // Adjust quality/scale for next attempt
-    const adjustment = calculateAdjustment(mime, quality, attempt)
+    const adjustment = calculateAdjustment(mime, quality, scale)
     quality = adjustment.quality
     scale = adjustment.scale
   }
@@ -52,7 +52,8 @@ export async function compressImage(
  * Get initial quality setting based on format
  */
 function getInitialQuality(mime: string): number {
-  if (mime === "image/png") return 9 // PNG compression level (1-9)
+  // PNG compression level is 0-9, GIF gets converted to PNG
+  if (mime === "image/png" || mime === "image/gif") return 9
   return 90 // JPEG/WebP/AVIF quality (0-100)
 }
 
@@ -72,7 +73,10 @@ async function resizeImage(
   return sharp(imageData).resize(
     Math.round(width * scale),
     Math.round(height * scale),
-    { fit: "inside", withoutEnlargement: true },
+    {
+      fit: "inside",
+      withoutEnlargement: true,
+    },
   )
 }
 
@@ -111,42 +115,42 @@ async function compressWithQuality(
 }
 
 /**
- * Calculate quality and scale adjustments for next compression attempt
+ * Calculate quality and scale adjustments for next compression attempt.
+ *
+ * Strategy:
+ * - PNG/GIF: max out compression level first, then shrink dimensions
+ * - Other formats: reduce quality first, then shrink dimensions
  */
 function calculateAdjustment(
   mime: string,
   currentQuality: number,
-  _attempt: number,
-): { quality: number scale: number } {
-  if (mime === "image/png") {
-    // PNG: increase compression level, then reduce dimensions
+  currentScale: number,
+): CompressionAdjustment {
+  if (mime === "image/png" || mime === "image/gif") {
     if (currentQuality < 9) {
-      return { quality: Math.min(9, currentQuality + 2), scale: 1 }
+      return { quality: Math.min(9, currentQuality + 2), scale: currentScale }
     }
-    return { quality: 9, scale: 0.8 }
+    return { quality: 9, scale: currentScale * 0.8 }
   }
 
-  // Other formats: reduce quality, then reduce dimensions
-  const newQuality = Math.max(30, currentQuality - 15)
-  if (newQuality <= 30) {
-    return { quality: mime === "image/png" ? 9 : 85, scale: 0.8 }
+  // Other formats: reduce quality first, then shrink dimensions
+  const newQuality = currentQuality - 15
+  if (newQuality > 30) {
+    return { quality: newQuality, scale: currentScale }
   }
 
-  return { quality: newQuality, scale: 1 }
+  // Quality bottomed out — reset quality and shrink
+  return { quality: 85, scale: currentScale * 0.8 }
 }
 
 /**
- * Aggressive fallback compression
+ * Aggressive fallback compression — resize to 1024px and compress hard
  */
 async function aggressiveCompression(
   imageData: Buffer,
   mime: string,
-): Promise<{ data: Buffer mime: string }> {
-  const sharpInstance = sharp(imageData).resize(
-    Math.round(1024),
-    Math.round(1024),
-    { fit: "inside" },
-  )
+): Promise<CompressedImage> {
+  const sharpInstance = sharp(imageData).resize(1024, 1024, { fit: "inside" })
 
   const finalBuffer =
     mime === "image/png"

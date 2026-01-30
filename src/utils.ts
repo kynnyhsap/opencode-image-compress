@@ -1,5 +1,7 @@
 import type { Part } from "@opencode-ai/sdk"
 
+import type { ParsedDataUri } from "./types.js"
+
 /**
  * Cache for processed images to avoid re-processing
  * Key: `${providerID}:${base64Hash}`, Value: processed base64 data
@@ -35,9 +37,7 @@ export function formatBytes(bytes: number): string {
 /**
  * Parse data URI to extract mime type and base64 data
  */
-export function parseDataUri(
-  dataUri: string,
-): { mime: string data: Buffer } | null {
+export function parseDataUri(dataUri: string): ParsedDataUri | null {
   const match = dataUri.match(/^data:([^;]+);base64,(.+)$/)
   if (!match) return null
 
@@ -48,7 +48,10 @@ export function parseDataUri(
 }
 
 /**
- * Check if a part is an image file part
+ * Check if a part is an image file part with a data URI.
+ *
+ * NOTE: Returns boolean because oxfmt doesn't support TypeScript type predicate
+ * syntax (`part is ImageFilePart`). Use with `as ImageFilePart` after the check.
  */
 export function isImageFilePart(part: Part): boolean {
   return (
@@ -95,7 +98,6 @@ export function getCacheKey(providerID: string, imageUrl: string): string {
  * Calculate approximate size from base64 data URI
  */
 export function getSizeFromDataUri(dataUri: string): number {
-  // Base64 is ~4/3 of binary size, so binary is ~3/4 of base64
   const base64Data = dataUri.split(",")[1]
   return Math.ceil(base64Data.length * 0.75)
 }

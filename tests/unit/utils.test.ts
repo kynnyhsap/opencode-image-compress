@@ -1,4 +1,7 @@
 import { describe, test, expect } from "bun:test"
+import type { Part } from "@opencode-ai/sdk"
+import type { ImageFilePart } from "../../src/types.ts"
+
 import {
   hashBase64,
   formatBytes,
@@ -9,7 +12,6 @@ import {
   setCachedImage,
   getSizeFromDataUri,
 } from "../../src/utils.ts"
-import type { Part } from "@opencode-ai/sdk"
 
 describe("utils", () => {
   describe("hashBase64", () => {
@@ -79,6 +81,34 @@ describe("utils", () => {
         type: "file",
         mime: "image/jpeg",
         url: "https://example.com/image.jpg",
+      } as Part
+
+      expect(isImageFilePart(part)).toBe(false)
+    })
+
+    // BUG FIX: isImageFilePart validates all required fields exist.
+    // After the guard passes, casting to ImageFilePart is safe.
+    // This test verifies the guard correctly validates mime/url fields.
+    test("should validate all ImageFilePart fields for safe casting", () => {
+      const part = {
+        type: "file",
+        mime: "image/png",
+        url: "data:image/png;base64,abc",
+      } as Part
+
+      expect(isImageFilePart(part)).toBe(true)
+
+      // After guard passes, casting is safe — verify the fields
+      const imagePart = part as unknown as ImageFilePart
+      expect(imagePart.url).toBe("data:image/png;base64,abc")
+      expect(imagePart.mime).toBe("image/png")
+    })
+
+    test("should return false for file parts with non-image mime", () => {
+      const part = {
+        type: "file",
+        mime: "application/pdf",
+        url: "data:application/pdf;base64,abc",
       } as Part
 
       expect(isImageFilePart(part)).toBe(false)

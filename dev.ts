@@ -22,7 +22,7 @@ console.log("💡 Tip: Try sending a large image (>5MB) to test compression")
 console.log("   You should see a toast notification when compression occurs")
 console.log("")
 
-const proc = spawn(["opencode", "--port", "3442"], {
+const proc = spawn(["opencode"], {
   env: {
     ...process.env,
     OPENCODE_CONFIG_CONTENT: JSON.stringify({
