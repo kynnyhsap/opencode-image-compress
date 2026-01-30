@@ -5,15 +5,7 @@ import type { Logger } from './logger.js'
 import { MODEL_PREFIX_TO_PROVIDER, PROVIDER_IMAGE_LIMITS, PROXY_PROVIDERS } from './providers.js'
 import type { CompressionResult, ImageFilePart } from './types.js'
 import { TARGET_MULTIPLIER } from './types.js'
-import {
-	isImageFilePart,
-	getCacheKey,
-	getCachedImage,
-	setCachedImage,
-	parseDataUri,
-	getSizeFromDataUri,
-	formatBytes,
-} from './utils.js'
+import { isImageFilePart, parseDataUri, formatBytes } from './utils.js'
 
 /**
  * Resolve upstream provider from model ID prefix.
@@ -74,25 +66,6 @@ export async function processImagePart(
 
 	const originalSize = parsed.data.length
 
-	// Check cache first
-	const cacheKey = getCacheKey(providerID, imagePart.url)
-	const cached = getCachedImage(cacheKey)
-	if (cached) {
-		const compressedSize = getSizeFromDataUri(cached)
-		log?.debug('cache hit', {
-			provider: providerID,
-			originalSize: formatBytes(originalSize),
-			compressedSize: formatBytes(compressedSize),
-		})
-		return {
-			part: { ...imagePart, url: cached },
-			originalSize,
-			compressedSize,
-			wasCompressed: true,
-			failed: false,
-		}
-	}
-
 	// Skip if already under target
 	if (originalSize <= targetSize) {
 		log?.debug('image under target, skipping', {
@@ -121,8 +94,6 @@ export async function processImagePart(
 	try {
 		const compressed = await compressImage(parsed.data, parsed.mime, maxSize, log)
 		const newDataUri = `data:${compressed.mime};base64,${compressed.data.toString('base64')}`
-
-		setCachedImage(cacheKey, newDataUri)
 
 		log?.info('image compressed', {
 			provider: providerID,

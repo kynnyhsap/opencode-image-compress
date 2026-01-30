@@ -4,29 +4,6 @@ import { KB, MB } from './types.js'
 import type { ParsedDataUri } from './types.js'
 
 /**
- * Cache for processed images to avoid re-processing
- * Key: `${providerID}:${base64Hash}`, Value: processed base64 data
- */
-const imageCache = new Map<string, string>()
-
-/**
- * Maximum cache entries before eviction
- */
-const MAX_CACHE_SIZE = 100
-
-/**
- * Simple hash function for base64 strings
- */
-export function hashBase64(data: string): string {
-	let hash = 0
-	for (let i = 0; i < data.length; i++) {
-		const char = data.charCodeAt(i)
-		hash = ((hash << 5) - hash + char) | 0
-	}
-	return hash.toString(36)
-}
-
-/**
  * Format bytes to human-readable string
  */
 export function formatBytes(bytes: number): string {
@@ -64,41 +41,4 @@ export function isImageFilePart(part: Part): boolean {
 		typeof part.url === 'string' &&
 		part.url.startsWith('data:')
 	)
-}
-
-/**
- * Get cached image if available
- */
-export function getCachedImage(cacheKey: string): string | undefined {
-	return imageCache.get(cacheKey)
-}
-
-/**
- * Store image in cache with LRU eviction
- */
-export function setCachedImage(cacheKey: string, dataUri: string): void {
-	imageCache.set(cacheKey, dataUri)
-
-	// Evict oldest entries if over limit
-	if (imageCache.size > MAX_CACHE_SIZE) {
-		const firstKey = imageCache.keys().next().value
-		if (firstKey) {
-			imageCache.delete(firstKey)
-		}
-	}
-}
-
-/**
- * Calculate cache key for an image
- */
-export function getCacheKey(providerID: string, imageUrl: string): string {
-	return `${providerID}:${hashBase64(imageUrl)}`
-}
-
-/**
- * Calculate approximate size from base64 data URI
- */
-export function getSizeFromDataUri(dataUri: string): number {
-	const base64Data = dataUri.split(',')[1]
-	return Math.ceil(base64Data.length * 0.75)
 }

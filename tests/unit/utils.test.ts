@@ -3,33 +3,9 @@ import { describe, test, expect } from 'bun:test'
 
 import { MB } from '../../src/types.ts'
 import type { ImageFilePart } from '../../src/types.ts'
-import {
-	hashBase64,
-	formatBytes,
-	parseDataUri,
-	isImageFilePart,
-	getCacheKey,
-	getCachedImage,
-	setCachedImage,
-	getSizeFromDataUri,
-} from '../../src/utils.ts'
+import { formatBytes, parseDataUri, isImageFilePart } from '../../src/utils.ts'
 
 describe('utils', () => {
-	describe('hashBase64', () => {
-		test('should produce consistent hashes', () => {
-			const data = 'test data for hashing'
-			const hash1 = hashBase64(data)
-			const hash2 = hashBase64(data)
-			expect(hash1).toBe(hash2)
-		})
-
-		test('should produce different hashes for different data', () => {
-			const hash1 = hashBase64('data1')
-			const hash2 = hashBase64('data2')
-			expect(hash1).not.toBe(hash2)
-		})
-	})
-
 	describe('formatBytes', () => {
 		test('should format bytes', () => {
 			expect(formatBytes(500)).toBe('500 B')
@@ -113,44 +89,6 @@ describe('utils', () => {
 			} as Part
 
 			expect(isImageFilePart(part)).toBe(false)
-		})
-	})
-
-	describe('cache operations', () => {
-		test('should store and retrieve from cache', () => {
-			const key = getCacheKey('anthropic', 'test-data-uri')
-			setCachedImage(key, 'compressed-data-uri')
-
-			expect(getCachedImage(key)).toBe('compressed-data-uri')
-		})
-
-		test('should evict old entries when over limit', () => {
-			// Fill cache beyond limit (MAX_CACHE_SIZE is 100)
-			for (let i = 0; i < 110; i++) {
-				setCachedImage(`key-${i}`, `value-${i}`)
-			}
-
-			// First 10 entries should be evicted (110 - 100 = 10)
-			expect(getCachedImage('key-0')).toBeUndefined()
-			expect(getCachedImage('key-9')).toBeUndefined()
-
-			// Entry 10 should still exist (first non-evicted)
-			expect(getCachedImage('key-10')).toBe('value-10')
-
-			// Recent entries should exist
-			expect(getCachedImage('key-109')).toBe('value-109')
-		})
-	})
-
-	describe('getSizeFromDataUri', () => {
-		test('should calculate approximate size', () => {
-			const base64 = Buffer.from('test data').toString('base64')
-			const uri = `data:text/plain;base64,${base64}`
-			const size = getSizeFromDataUri(uri)
-
-			// Should be approximately 9 bytes (length of "test data")
-			expect(size).toBeGreaterThan(5)
-			expect(size).toBeLessThan(15)
 		})
 	})
 })
