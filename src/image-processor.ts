@@ -37,7 +37,7 @@ export async function processImagePart(
 	log?: Logger,
 ): Promise<CompressionResult> {
 	if (!isImageFilePart(part)) {
-		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
+		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false, failed: false }
 	}
 
 	const imagePart = part as ImageFilePart
@@ -47,7 +47,7 @@ export async function processImagePart(
 	const parsed = parseDataUri(imagePart.url)
 	if (!parsed) {
 		log?.warn('failed to parse data URI', { mime: imagePart.mime })
-		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false }
+		return { part, originalSize: 0, compressedSize: 0, wasCompressed: false, failed: true }
 	}
 
 	const originalSize = parsed.data.length
@@ -67,6 +67,7 @@ export async function processImagePart(
 			originalSize,
 			compressedSize,
 			wasCompressed: true,
+			failed: false,
 		}
 	}
 
@@ -83,6 +84,7 @@ export async function processImagePart(
 			originalSize,
 			compressedSize: originalSize,
 			wasCompressed: false,
+			failed: false,
 		}
 	}
 
@@ -113,6 +115,7 @@ export async function processImagePart(
 			originalSize,
 			compressedSize: compressed.data.length,
 			wasCompressed: true,
+			failed: false,
 		}
 	} catch (error) {
 		log?.error('compression failed', {
@@ -126,6 +129,7 @@ export async function processImagePart(
 			originalSize,
 			compressedSize: originalSize,
 			wasCompressed: false,
+			failed: true,
 		}
 	}
 }

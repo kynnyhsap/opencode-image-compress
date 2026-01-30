@@ -76,17 +76,25 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 				}
 			}
 
+			const failedCount = results.filter((r) => r.failed).length
+
 			if (compressionStats.length > 0) {
 				log.info('compression complete', {
 					compressed: compressionStats.length,
-					skipped: tasks.length - compressionStats.length,
+					skipped: tasks.length - compressionStats.length - failedCount,
+					failed: failedCount,
 					stats: compressionStats,
 				})
 			} else {
 				log.debug('no images needed compression')
 			}
 
+			if (failedCount > 0) {
+				log.warn('some images failed to compress', { failedCount })
+			}
+
 			await showCompressionToast(ctx, compressionStats)
+			await showErrorToast(ctx, failedCount)
 		},
 	}
 }
@@ -126,5 +134,31 @@ async function showCompressionToast(ctx: PluginInput, stats: CompressionStats[])
 		})
 	} catch (error) {
 		console.error('[opencode-image-compress] Failed to show toast:', error)
+	}
+}
+
+/**
+ * Show error toast when image compression fails
+ */
+async function showErrorToast(ctx: PluginInput, failedCount: number): Promise<void> {
+	if (!process.env.OPENCODE_IMAGE_COMPRESS_PLUGIN_SHOW_TOAST) return
+	if (failedCount === 0) return
+
+	const message =
+		failedCount === 1
+			? 'Failed to compress 1 image. Original image will be sent as-is.'
+			: `Failed to compress ${failedCount} images. Original images will be sent as-is.`
+
+	try {
+		await ctx.client.tui.showToast({
+			body: {
+				title: 'Image Compress Plugin',
+				message,
+				variant: 'error',
+				duration: 3000,
+			},
+		})
+	} catch (error) {
+		console.error('[opencode-image-compress] Failed to show error toast:', error)
 	}
 }

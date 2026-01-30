@@ -36,6 +36,7 @@ describe('image-processor', () => {
 			const result = await processImagePart(textPart, 'anthropic')
 
 			expect(result.wasCompressed).toBe(false)
+			expect(result.failed).toBe(false)
 			expect(result.part).toBe(textPart)
 		})
 
@@ -51,6 +52,7 @@ describe('image-processor', () => {
 			const result = await processImagePart(part, 'anthropic')
 
 			expect(result.wasCompressed).toBe(false)
+			expect(result.failed).toBe(false)
 		})
 
 		// BUG FIX: processImagePart had `as ImageFilePart` cast that was unnecessary
@@ -65,12 +67,13 @@ describe('image-processor', () => {
 
 			const result = await processImagePart(part, 'anthropic')
 			expect(result.wasCompressed).toBe(false)
+			expect(result.failed).toBe(false)
 			expect(result.originalSize).toBe(0)
 			// Should return the exact same object reference
 			expect(result.part).toBe(part)
 		})
 
-		test('should return wasCompressed false for invalid data URI', async () => {
+		test('should return failed true for invalid data URI', async () => {
 			const part = {
 				type: 'file',
 				mime: 'image/jpeg',
@@ -79,6 +82,7 @@ describe('image-processor', () => {
 
 			const result = await processImagePart(part, 'anthropic')
 			expect(result.wasCompressed).toBe(false)
+			expect(result.failed).toBe(true)
 			expect(result.originalSize).toBe(0)
 		})
 
@@ -109,6 +113,7 @@ describe('image-processor', () => {
 
 			const result = await processImagePart(part, 'anthropic')
 			expect(result.wasCompressed).toBe(false)
+			expect(result.failed).toBe(false)
 			expect(result.originalSize).toBe(smallJpeg.length)
 			expect(result.compressedSize).toBe(smallJpeg.length)
 		})

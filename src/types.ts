@@ -72,6 +72,7 @@ export type CompressionResult = {
 	originalSize: number
 	compressedSize: number
 	wasCompressed: boolean
+	failed: boolean
 }
 
 /**
