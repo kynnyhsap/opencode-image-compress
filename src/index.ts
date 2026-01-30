@@ -52,12 +52,16 @@ async function showCompressionToast(ctx: PluginInput, stats: CompressionStats[])
 const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 	return {
 		'experimental.chat.messages.transform': async (_input, output) => {
-			const compressionStats: CompressionStats[] = []
+			// Collect all image parts across all messages for concurrent processing
+			const tasks: Array<{
+				message: (typeof output.messages)[number]
+				index: number
+				providerID: string
+			}> = []
 
 			for (const message of output.messages) {
 				if (!message.parts) continue
 
-				// Get provider from message metadata
 				let providerID = 'default'
 				if (isUserMessage(message.info)) {
 					const userInfo = message.info as UserMessage & {
@@ -66,25 +70,32 @@ const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 					providerID = userInfo.model?.providerID || 'default'
 				}
 
-				// Process each image part
 				for (let i = 0; i < message.parts.length; i++) {
-					const part = message.parts[i]
-
-					if (isImageFilePart(part)) {
-						const result = await processImagePart(part, providerID)
-						message.parts[i] = result.part
-
-						if (result.wasCompressed) {
-							compressionStats.push({
-								originalSize: result.originalSize,
-								compressedSize: result.compressedSize,
-							})
-						}
+					if (isImageFilePart(message.parts[i])) {
+						tasks.push({ message, index: i, providerID })
 					}
 				}
 			}
 
-			// Show notification if any images were compressed
+			// Process all images concurrently
+			const results = await Promise.all(
+				tasks.map((task) => processImagePart(task.message.parts[task.index], task.providerID)),
+			)
+
+			// Apply results and collect stats
+			const compressionStats: CompressionStats[] = []
+			for (let i = 0; i < results.length; i++) {
+				const result = results[i]
+				tasks[i].message.parts[tasks[i].index] = result.part
+
+				if (result.wasCompressed) {
+					compressionStats.push({
+						originalSize: result.originalSize,
+						compressedSize: result.compressedSize,
+					})
+				}
+			}
+
 			await showCompressionToast(ctx, compressionStats)
 		},
 	}
