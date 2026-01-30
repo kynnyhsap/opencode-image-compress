@@ -42,6 +42,7 @@
 		"lint": "oxlint src/ tests/ dev.ts",
 		"lint:fix": "oxlint src/ tests/ dev.ts --fix",
 		"prepublishOnly": "bun run build",
+		"check": "bun fmt && bun lint && bun typecheck && bun test:unit",
 		"typecheck": "tsc --noEmit",
 		"test:unit": "bun test tests/unit",
 		"test:e2e": "E2E_TESTS=1 bun test tests/e2e",
