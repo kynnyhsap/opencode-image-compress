@@ -43,8 +43,8 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@opencode-ai/plugin": "^1.1.44",
-		"@opencode-ai/sdk": "^1.1.44",
+		"@opencode-ai/plugin": "^1.1.51",
+		"@opencode-ai/sdk": "^1.1.51",
 		"sharp": "^0.33.5"
 	},
 	"devDependencies": {
