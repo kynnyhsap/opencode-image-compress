@@ -4,8 +4,7 @@
 
 ### Building & Testing
 
-- **No rebuild needed for local dev**: Package exports use `"bun": "./src/index.ts"`, so OpenCode loads source directly.
-- **Build only needed for npm publish**: `dist/` is for non-Bun consumers via the `"default"` export.
+- **No build step**: Package exports TypeScript source directly. OpenCode runs on Bun which handles TS natively.
 - **Check if plugin is loaded**: `OPENCODE_CONFIG_CONTENT='{"plugin":["..."]}' opencode debug config | jq '.plugin'`
 
 ### Plugin Hooks
