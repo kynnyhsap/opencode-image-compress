@@ -1,10 +1,12 @@
 import type { Plugin, PluginInput } from '@opencode-ai/plugin'
 import type { UserMessage } from '@opencode-ai/sdk'
 
+import { compressImage } from './compression.js'
 import { processImagePart, isUserMessage } from './image-processor.js'
 import { createLogger } from './logger.js'
+import { PROVIDER_IMAGE_LIMITS } from './providers.js'
 import type { CompressionStats } from './types.js'
-import { isImageFilePart, formatBytes } from './utils.js'
+import { isImageFilePart, formatBytes, isImageMime } from './utils.js'
 
 /**
  * OpenCode plugin for automatic image compression
@@ -18,6 +20,80 @@ export const ImageCompressPlugin: Plugin = async (ctx: PluginInput) => {
 	log.info('plugin initialized')
 
 	return {
+		'tool.execute.after': async (input, output) => {
+			// Only process read tool results with image attachments
+			if (input.tool !== 'read') return
+
+			const out = output as {
+				title: string
+				output: string
+				metadata: Record<string, unknown>
+				attachments?: Array<{
+					id: string
+					sessionID: string
+					messageID: string
+					type: string
+					mime: string
+					url: string
+				}>
+			}
+
+			if (!out.attachments || out.attachments.length === 0) return
+
+			// Process each image attachment
+			for (const attachment of out.attachments) {
+				if (attachment.type !== 'file' || !isImageMime(attachment.mime)) continue
+				if (!attachment.url.startsWith('data:')) continue
+
+				// Parse data URL
+				const dataUrlMatch = attachment.url.match(/^data:([^;]+);base64,(.+)$/)
+				if (!dataUrlMatch) continue
+
+				const [, mime, base64Data] = dataUrlMatch
+				const imageBuffer = Buffer.from(base64Data, 'base64')
+				const originalSize = imageBuffer.length
+
+				// Use default/anthropic limit for tool results (most restrictive common case)
+				const maxSize = PROVIDER_IMAGE_LIMITS['anthropic'] || PROVIDER_IMAGE_LIMITS['default']
+
+				// Skip if already under limit
+				if (originalSize <= maxSize) {
+					log.debug('image already under limit', {
+						tool: input.tool,
+						originalSize,
+						maxSize,
+					})
+					continue
+				}
+
+				log.info('compressing image from read tool', {
+					tool: input.tool,
+					originalSize,
+					maxSize,
+					mime,
+				})
+
+				try {
+					const compressed = await compressImage(imageBuffer, mime, maxSize, log)
+
+					// Update the attachment URL with compressed data
+					attachment.url = `data:${compressed.mime};base64,${compressed.data.toString('base64')}`
+					attachment.mime = compressed.mime
+
+					log.info('compressed image in tool result', {
+						tool: input.tool,
+						originalSize,
+						compressedSize: compressed.data.length,
+						savings: `${((1 - compressed.data.length / originalSize) * 100).toFixed(0)}%`,
+					})
+				} catch (error) {
+					log.error('failed to compress image in tool result', {
+						tool: input.tool,
+						error: error instanceof Error ? error.message : String(error),
+					})
+				}
+			}
+		},
 		'experimental.chat.messages.transform': async (_input, output) => {
 			const totalMessages = output.messages.length
 			log.debug('transform hook called', { totalMessages })

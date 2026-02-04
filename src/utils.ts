@@ -42,3 +42,10 @@ export function isImageFilePart(part: Part): boolean {
 		part.url.startsWith('data:')
 	)
 }
+
+/**
+ * Check if a mime type is an image mime type
+ */
+export function isImageMime(mime: string): boolean {
+	return mime.startsWith('image/')
+}
