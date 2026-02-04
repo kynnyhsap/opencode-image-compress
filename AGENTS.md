@@ -6,6 +6,7 @@
 
 - **No build step**: Package exports TypeScript source directly. OpenCode runs on Bun which handles TS natively.
 - **Check if plugin is loaded**: `OPENCODE_CONFIG_CONTENT='{"plugin":["..."]}' opencode debug config | jq '.plugin'`
+- **Dev script**: `bun dev` runs OpenCode with this plugin loaded. Equivalent to `opencode` but with the plugin injected via `OPENCODE_CONFIG_CONTENT`. Pass args like `bun dev run "prompt"` or `bun dev -m anthropic/claude-sonnet-4-20250514`.
 
 ### Plugin Hooks
 
