@@ -1,6 +1,6 @@
 {
 	"name": "opencode-image-compress",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "Automatically compresses images before sending to AI providers to avoid size limits",
 	"keywords": [
 		"anthropic",
