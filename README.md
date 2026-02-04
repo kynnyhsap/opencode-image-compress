@@ -29,7 +29,12 @@ That's it. OpenCode will automatically install the plugin on next launch.
 
 ## How It Works
 
-The plugin intercepts images via the `experimental.chat.messages.transform` hook, detects the provider and model, and compresses images that exceed provider-specific limits.
+The plugin compresses images in two scenarios:
+
+1. **Images pasted in chat** - via the `experimental.chat.messages.transform` hook
+2. **Images read by the agent** - via the `tool.execute.after` hook when the Read tool returns image attachments
+
+In both cases, it detects the provider and model, and compresses images that exceed provider-specific limits.
 
 ### Provider Limits
 
