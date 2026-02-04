@@ -4,7 +4,8 @@
 
 ### Building & Testing
 
-- **Always rebuild after source changes**: Plugin loads from `dist/`, not `src/`. Run `bun run build` after any changes.
+- **No rebuild needed for local dev**: Package exports use `"bun": "./src/index.ts"`, so OpenCode loads source directly.
+- **Build only needed for npm publish**: `dist/` is for non-Bun consumers via the `"default"` export.
 - **Check if plugin is loaded**: `OPENCODE_CONFIG_CONTENT='{"plugin":["..."]}' opencode debug config | jq '.plugin'`
 
 ### Plugin Hooks
